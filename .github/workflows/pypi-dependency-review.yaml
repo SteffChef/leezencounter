@@ -13,4 +13,4 @@ jobs:
     - name: Dependency Review
       uses: actions/dependency-review-action@v4
       with:
-        config-file: './.github/configs/dependency-review-config.yaml'
+        config-file: '../.github/configs/dependency-review-config.yaml'
