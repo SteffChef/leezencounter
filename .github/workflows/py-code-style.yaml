@@ -24,7 +24,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - uses: ../.github/actions/setup-python-env
+      - uses: ./../.github/actions/setup-python-env
 
       - name: 🔍 Run mypy
         working-directory: model-training
@@ -41,7 +41,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
 
-      - uses: ../.github/actions/setup-python-env
+      - uses: ./../.github/actions/setup-python-env
 
       - name: 🔍 Run Ruff
         working-directory: model-training
@@ -59,7 +59,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - uses: ../.github/actions/setup-python-env
+      - uses: ./../.github/actions/setup-python-env
 
       - name: 🔍 Run isort
         working-directory: model-training
