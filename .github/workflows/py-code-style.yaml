@@ -1,0 +1,68 @@
+name: Python Code Style
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'model-training/**'
+      - '.github/**'
+  pull_request:
+    branches: ["*"]
+    paths:
+      - 'model-training/**'
+      - '.github/**'
+  release:
+    branches: [release/*]
+
+
+jobs:
+
+  typing:
+    name: MyPy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-python-env
+
+      - name: 🔍 Run mypy
+        working-directory: model-training
+        run: |
+          source .venv/bin/activate
+          poe typing
+
+  linting:
+    name: Ruff
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - uses: ./.github/actions/setup-python-env
+
+      - name: 🔍 Run Ruff
+        working-directory: model-training
+        run: |
+          source .venv/bin/activate
+          poe lint
+
+  isort:
+    name: isort
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11"]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-python-env
+
+      - name: 🔍 Run isort
+        working-directory: model-training
+        run: |
+          source .venv/bin/activate
+          poe isort

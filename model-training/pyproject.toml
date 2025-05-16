@@ -1,0 +1,136 @@
+[project]
+name = "model-training"
+version = "0.1.0"
+description = "Sub-repo for model training"
+requires-python = ">=3.10,<4"
+readme = "README.md"
+dependencies = ["poethepoet>=0.22.1,<0.23"]
+
+[project.scripts]
+poe = "poethepoet:main"
+
+[project.entry-points."poetry.application.plugin"]
+poethepoet = "poethepoet.plugin:PoetryPlugin"
+
+[dependency-groups]
+ci = [
+    "mypy>=1.5.1,<2",
+    "black>=23.7.0,<24",
+    "pylint>=2.17.5,<3",
+    "isort>=5.12.0,<6",
+    "pytest>=7.1.2,<8",
+    "pytest-cov>=3.0.0,<4",
+    "pycodestyle>=2.11.0,<3",
+    "ruff>=0.11.8",
+    "pre-commit",
+]
+
+[tool.uv]
+default-groups = ["ci"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["blueprint_project"]
+
+[tool.poe.tasks]
+_clean_docs.script = "shutil:rmtree('docs/_build', ignore_errors=1)"
+
+[tool.poe.tasks.dev-setup]
+    help = "Setup the project for development"
+    cmd = "uv sync --all-groups"
+
+[tool.poe.tasks.typing]
+    help = "Run MyPy checker on the code base"
+    cmd  = "mypy model_training"
+
+[tool.poe.tasks.lint]
+    help = "Run Ruff linter"
+    cmd  = "ruff check"
+
+[tool.poe.tasks.lint-fix]
+    help = "Fix linting and import errors"
+    cmd = "ruff check --fix"
+
+[tool.poe.tasks.format]
+help = "Format code using Ruff"
+cmd  = "ruff format"
+
+[tool.poe.tasks.isort-fix]
+    help = "Sort imports. This affects the code base as this makes changes to affected files."
+    cmd = "isort model_training"
+
+[tool.poe.tasks.black]
+    help = "Format code using black. This affects the code base as this makes changes to affected files."
+    cmd = "black model_training"
+
+[tool.poe.tasks.isort]
+    help = "Validate isort code style"
+    cmd  = "isort model_training --check --diff"
+
+[tool.poe.tasks.ci]
+    help     = "Execute all CI tasks"
+    sequence = ["typing", "lint", "isort"]
+    ignore_fail = true
+
+[tool.poe.tasks.clean]
+    help = "Remove generated files"
+    cmd  = """
+    # multiline commands including comments work too!
+    rm -rf .coverage
+           .mypy_cache
+           .pytest_cache
+           ./**/__pycache__
+           .ruff_cache
+           dist
+           htmlcov
+           ./docs/_build
+           ./tests/fixtures/simple_project/venv
+           ./tests/fixtures/venv_project/myvenv
+           ./tests/fixtures/poetry_plugin_project/**/.venv
+           ./tests/temp
+     """
+
+[tool.poe.tasks.install-poetry-plugin]
+    help = "Install or update this project as a plugin in poetry"
+    sequence = [
+      { cmd = "poetry self remove poethepoet"},
+      { cmd = "poetry self add \"${POE_ROOT}[poetry_plugin]\""}
+    ]
+    ignore_fail = true
+
+
+[tool.ruff]
+line-length = 120
+src = ["model_training"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+extend-select = ["I"]
+
+[tool.isort]
+profile = "black"
+py_version = 310
+
+[tool.black]
+line-length = 120
+target-version = ["py310"]
+skip-string-normalization = true
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+
+[tool.pylint]
+max-line-length = 120
+disable = [
+    "C0103",  # invalid-name
+    "C0114",  # missing-module-docstring
+    "W1203",  # logging-fstring-interpolation
+    "E0213",  # no-self-argument
+    "E1101",  # no-member
+    "W0511",  # To-Dos
+    "R0903"   # too-few-public-methods
+]
