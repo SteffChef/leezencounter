@@ -5,22 +5,20 @@ description: Common Python project setup with uv and pyproject.toml
 runs:
   using: "composite"
   steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version-file: model-training/pyproject.toml
+
     - name: Install uv
       uses: astral-sh/setup-uv@v5
-      working-directory: model-training
       with:
         version: 0.7.2
         enable-cache: true
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      working-directory: model-training
-      with:
-        python-version-file: "pyproject.toml"
-
     - name: 📦 Install dependencies
       shell: bash
-      working-directory: model-training
       run: |
+        cd model-training
         uv lock
         uv sync --all-groups
