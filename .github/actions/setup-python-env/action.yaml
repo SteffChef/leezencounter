@@ -1,0 +1,24 @@
+# .github/actions/setup-python-env/action.yml
+name: Setup Python Environment
+description: Common Python project setup with uv and pyproject.toml
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version-file: model-training/pyproject.toml
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v5
+      with:
+        version: 0.7.2
+        enable-cache: true
+
+    - name: 📦 Install dependencies
+      shell: bash
+      run: |
+        cd model-training
+        uv lock
+        uv sync --all-groups
