@@ -33,7 +33,9 @@ void setup() {
 
   setupCamera();
   setupSD();
+  initializeFrameCounter();
 }
+
 
 void loop() {
   saveFrame();  // Capture and save a single frame
@@ -115,4 +117,42 @@ void saveFrame() {
 
   Serial.print("Saved ");
   Serial.println(path);
+}
+
+int getLastFrameNumber() {
+  int maxFrame = -1;
+
+  File root = SD.open("/");
+  if (!root) {
+    Serial.println("Failed to open SD root");
+    return 0;
+  }
+
+  File file = root.openNextFile();
+  while (file) {
+    String filename = file.name();
+    Serial.print("Found file: ");
+    Serial.println(filename);
+    if (filename.startsWith("frame") && filename.endsWith(".jpg")) {
+      int numStart = 5; // after "/frame"
+      int numEnd = filename.indexOf(".jpg");
+      if (numEnd > numStart) {
+        String numStr = filename.substring(numStart, numEnd);
+        int num = numStr.toInt();
+        if (num > maxFrame) {
+          maxFrame = num;
+        }
+      }
+    }
+    file = root.openNextFile();
+  }
+
+  return maxFrame + 1;
+}
+
+
+void initializeFrameCounter() {
+  frameCount = getLastFrameNumber();
+  Serial.print("Starting from frame number: ");
+  Serial.println(frameCount);
 }
