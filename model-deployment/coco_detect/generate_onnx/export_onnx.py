@@ -137,7 +137,7 @@ class ESP_YOLO(YOLO):
         )
 
 
-model = ESP_YOLO("yolo11n.pt")
+model = ESP_YOLO("../models/yolo11n.pt")
 for m in model.modules():
     if isinstance(m, Attention):
         m.forward = ESP_Attention.forward.__get__(m)
