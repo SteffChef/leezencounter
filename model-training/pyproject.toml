@@ -4,7 +4,11 @@ version = "0.1.0"
 description = "Sub-repo for model training"
 requires-python = ">=3.10,<4"
 readme = "README.md"
-dependencies = ["poethepoet>=0.22.1,<0.23"]
+dependencies = [
+    "poethepoet>=0.22.1,<0.23",
+    "ultralytics>=8.3.136",
+    "wandb>=0.19.11",
+]
 
 [project.scripts]
 poe = "poethepoet:main"
