@@ -1,32 +1,46 @@
+#include <WiFi.h>
+#include <SD.h>
+#include "time.h"
 #include "esp_camera.h"
 #include "FS.h"
 #include "SD.h"
 #include "SPI.h"
-
+#define ledPin 4
 #define CAMERA_MODEL_XIAO_ESP32S3 // Has PSRAM
-
+#define SD_CS 5
 #include "camera_pins.h"
 
-unsigned long lastCaptureTime = 0; // Last shooting time
-int imageCount = 1;                // File Counter
-bool camera_sign = false;          // Check camera status
-bool sd_sign = false;              // Check sd status
+const char* ssid = "";
+const char* password = "";
 
-// Save pictures to SD card
-void photo_save(const char * fileName) {
-  // Take a photo
-  camera_fb_t *fb = esp_camera_fb_get();
+const char* ntpServer = "pool.ntp.org";
+const long gmtOffset_sec = 3600;      
+const int daylightOffset_sec = 3600;  
+
+unsigned long lastCaptureTime = 0; 
+int imageCount = 1;            
+bool camera_sign = false;      
+bool sd_sign = false;              
+
+void savePhoto(const char *path) {
+  camera_fb_t * fb = esp_camera_fb_get();
   if (!fb) {
-    Serial.println("Failed to get camera frame buffer");
+    Serial.println("Camera capture failed");
     return;
   }
-  // Save photo to file
-  writeFile(SD, fileName, fb->buf, fb->len);
-  
-  // Release image buffer
+
+  File file = SD.open(path, FILE_WRITE);
+  if (!file) {
+    Serial.println("Failed to open file");
+    esp_camera_fb_return(fb);
+    return;
+  }
+
+  file.write(fb->buf, fb->len);
+  file.close();
   esp_camera_fb_return(fb);
 
-  Serial.println("Photo saved to file");
+  Serial.printf("Saved picture: %s\n", path);
 }
 
 // SD card write file
@@ -51,6 +65,20 @@ void setup() {
   while(!Serial); // When the serial monitor is turned on, the program starts to execute
 
   pinMode(LED_BUILTIN, OUTPUT);
+
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\nWiFi connected");
+
+  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+  struct tm timeinfo;
+  if (!getLocalTime(&timeinfo)) {
+    Serial.println("Failed to obtain time");
+    return;
+  }
 
   camera_config_t config;
   config.ledc_channel = LEDC_CHANNEL_0;
@@ -142,25 +170,21 @@ void setup() {
 }
 
 void loop() {
-  // Camera & SD available, start taking pictures
-  if (camera_sign && sd_sign) {
-    unsigned long now = millis();
+  delay(3000);  // take a photo every 3 seconds
 
-    // If it's been more than 3 seconds since last capture
-    if ((now - lastCaptureTime) >= 3000) {
-      char filename[32];
-      sprintf(filename, "/image%d.jpg", imageCount);
-
-      // Blink LED before capture
-      digitalWrite(ledPin, HIGH);
-      delay(100); // Short blink (100ms)
-      digitalWrite(ledPin, LOW);
-
-      photo_save(filename);
-      Serial.printf("Saved picture: %s\r\n", filename);
-
-      imageCount++;
-      lastCaptureTime = now;
-    }
+  // Get current time
+  struct tm timeinfo;
+  if (!getLocalTime(&timeinfo)) {
+    Serial.println("Failed to get time");
+    return;
   }
+
+  char filename[32];
+  strftime(filename, sizeof(filename), "/%Y-%m-%d_%H-%M-%S.jpg", &timeinfo);
+
+  // Blink LED
+  digitalWrite(ledPin, HIGH); delay(100); digitalWrite(ledPin, LOW);
+
+  savePhoto(filename);
 }
+
