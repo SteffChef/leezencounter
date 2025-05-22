@@ -5,6 +5,7 @@ description = "Sub-repo for model training"
 requires-python = ">=3.10,<4"
 readme = "README.md"
 dependencies = [
+    "click>=8.2.0",
     "dvc[s3]>=3.59.2",
     "poethepoet>=0.22.1,<0.23",
     "ultralytics>=8.3.136",
@@ -13,6 +14,7 @@ dependencies = [
 
 [project.scripts]
 poe = "poethepoet:main"
+model-train = "model_training.cli:train"
 
 [project.entry-points."poetry.application.plugin"]
 poethepoet = "poethepoet.plugin:PoetryPlugin"
@@ -42,6 +44,11 @@ packages = ["blueprint_project"]
 
 [tool.poe.tasks]
 _clean_docs.script = "shutil:rmtree('docs/_build', ignore_errors=1)"
+
+[tool.poe.tasks.train]
+    help = "Runs an Ultralytics training job"
+    cmd = "uv run python -m model_training.cli"
+    envfile = [".env", "local.env"]
 
 [tool.poe.tasks.dev-setup]
     help = "Setup the project for development"
@@ -105,7 +112,6 @@ cmd  = "ruff format"
       { cmd = "poetry self add \"${POE_ROOT}[poetry_plugin]\""}
     ]
     ignore_fail = true
-
 
 [tool.ruff]
 line-length = 120

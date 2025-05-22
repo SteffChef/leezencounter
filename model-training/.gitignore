@@ -175,3 +175,5 @@ cython_debug/
 
 # dvc-tracked files and folders
 /data
+/models
+/datasets

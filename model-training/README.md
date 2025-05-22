@@ -44,6 +44,7 @@ dvc pull
 .
 ├── data                // image data and other data sources for model training
 ├── datasets            // downloaded or created datasets for model training (e.g., COCO)
+├── configs             // run configurations in YAML format for training jobs
 ├── runs                // training runs' configurations including weights and evaluation plots
 ├── model_training      // main directory containing the code for model training
 ├── models              // directory for storing fine-tuned/trained models

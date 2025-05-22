@@ -1,0 +1,5 @@
+[core]
+    remote = tinyaiot
+['remote "tinyaiot"']
+    url = s3://tinyaiot/dvcstore/
+    endpointurl = https://tinyaiot-storage.fra1.digitaloceanspaces.com

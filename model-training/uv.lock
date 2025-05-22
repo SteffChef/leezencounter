@@ -1627,6 +1627,7 @@ name = "model-training"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "click" },
     { name = "dvc", extra = ["s3"] },
     { name = "poethepoet" },
     { name = "ultralytics" },
@@ -1648,6 +1649,7 @@ ci = [
 
 [package.metadata]
 requires-dist = [
+    { name = "click", specifier = ">=8.2.0" },
     { name = "dvc", extras = ["s3"], specifier = ">=3.59.2" },
     { name = "poethepoet", specifier = ">=0.22.1,<0.23" },
     { name = "ultralytics", specifier = ">=8.3.136" },
