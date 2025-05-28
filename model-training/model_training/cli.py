@@ -1,5 +1,3 @@
-import sys
-
 import click
 
 from model_training.trainer import Trainer

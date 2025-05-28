@@ -30,6 +30,8 @@ ci = [
     "pycodestyle>=2.11.0,<3",
     "ruff>=0.11.8",
     "pre-commit",
+    "yamllint>=1.37.1",
+    "types-pyyaml>=6.0.12.20250516",
 ]
 
 [tool.uv]
@@ -62,21 +64,21 @@ _clean_docs.script = "shutil:rmtree('docs/_build', ignore_errors=1)"
     help = "Run Ruff linter"
     cmd  = "ruff check"
 
+[tool.poe.tasks.yamllint]
+    help = "Run linter jobs for YAML files"
+    cmd = "yamllint -f parsable configs/"
+
 [tool.poe.tasks.lint-fix]
     help = "Fix linting and import errors"
     cmd = "ruff check --fix"
 
-[tool.poe.tasks.format]
-help = "Format code using Ruff"
-cmd  = "ruff format"
+[tool.poe.tasks.fmt]
+    help = "Format code using Ruff"
+    cmd  = "ruff format"
 
 [tool.poe.tasks.isort-fix]
     help = "Sort imports. This affects the code base as this makes changes to affected files."
     cmd = "isort model_training"
-
-[tool.poe.tasks.black]
-    help = "Format code using black. This affects the code base as this makes changes to affected files."
-    cmd = "black model_training"
 
 [tool.poe.tasks.isort]
     help = "Validate isort code style"
@@ -84,7 +86,7 @@ cmd  = "ruff format"
 
 [tool.poe.tasks.ci]
     help     = "Execute all CI tasks"
-    sequence = ["typing", "lint", "isort"]
+    sequence = ["typing", "lint", "yamllint", "isort"]
     ignore_fail = true
 
 [tool.poe.tasks.clean]

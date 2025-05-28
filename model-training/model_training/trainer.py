@@ -10,7 +10,6 @@ from ultralytics import YOLO
 
 from model_training.core.schemas import TrainConfigSchema
 
-
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
@@ -60,7 +59,7 @@ class Trainer:
     @staticmethod
     def _init_wandb() -> None:
         """Creates W&B session"""
-        wandb.login(anonymous='allow', key=os.environ["WANDB_API_KEY"])
+        wandb.login(anonymous="allow", key=os.environ["WANDB_API_KEY"])
 
     def _load_model(self) -> tuple[YOLO, str]:
         """
