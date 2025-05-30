@@ -4,10 +4,20 @@ version = "0.1.0"
 description = "Sub-repo for model training"
 requires-python = ">=3.10,<4"
 readme = "README.md"
-dependencies = ["poethepoet>=0.22.1,<0.23"]
+dependencies = [
+    "click>=8.2.0",
+    "dvc[s3]>=3.59.2",
+    "onnx>=1.18.0",
+    "onnxruntime>=1.22.0",
+    "onnxslim>=0.1.54",
+    "poethepoet>=0.22.1,<0.23",
+    "ultralytics>=8.3.136",
+    "wandb>=0.19.11",
+]
 
 [project.scripts]
 poe = "poethepoet:main"
+model-train = "model_training.cli:train"
 
 [project.entry-points."poetry.application.plugin"]
 poethepoet = "poethepoet.plugin:PoetryPlugin"
@@ -23,6 +33,11 @@ ci = [
     "pycodestyle>=2.11.0,<3",
     "ruff>=0.11.8",
     "pre-commit",
+    "yamllint>=1.37.1",
+    "types-pyyaml>=6.0.12.20250516",
+]
+notebooks = [
+    "jupyter>=1.1.1",
 ]
 
 [tool.uv]
@@ -38,6 +53,11 @@ packages = ["blueprint_project"]
 [tool.poe.tasks]
 _clean_docs.script = "shutil:rmtree('docs/_build', ignore_errors=1)"
 
+[tool.poe.tasks.train]
+    help = "Runs an Ultralytics training job"
+    cmd = "uv run python -m model_training.cli"
+    envfile = [".env", "local.env"]
+
 [tool.poe.tasks.dev-setup]
     help = "Setup the project for development"
     cmd = "uv sync --all-groups"
@@ -50,21 +70,21 @@ _clean_docs.script = "shutil:rmtree('docs/_build', ignore_errors=1)"
     help = "Run Ruff linter"
     cmd  = "ruff check"
 
+[tool.poe.tasks.yamllint]
+    help = "Run linter jobs for YAML files"
+    cmd = "yamllint -f parsable configs/"
+
 [tool.poe.tasks.lint-fix]
     help = "Fix linting and import errors"
     cmd = "ruff check --fix"
 
-[tool.poe.tasks.format]
-help = "Format code using Ruff"
-cmd  = "ruff format"
+[tool.poe.tasks.fmt]
+    help = "Format code using Ruff"
+    cmd  = "ruff format"
 
 [tool.poe.tasks.isort-fix]
     help = "Sort imports. This affects the code base as this makes changes to affected files."
     cmd = "isort model_training"
-
-[tool.poe.tasks.black]
-    help = "Format code using black. This affects the code base as this makes changes to affected files."
-    cmd = "black model_training"
 
 [tool.poe.tasks.isort]
     help = "Validate isort code style"
@@ -72,7 +92,7 @@ cmd  = "ruff format"
 
 [tool.poe.tasks.ci]
     help     = "Execute all CI tasks"
-    sequence = ["typing", "lint", "isort"]
+    sequence = ["typing", "lint", "yamllint", "isort"]
     ignore_fail = true
 
 [tool.poe.tasks.clean]
@@ -100,7 +120,6 @@ cmd  = "ruff format"
       { cmd = "poetry self add \"${POE_ROOT}[poetry_plugin]\""}
     ]
     ignore_fail = true
-
 
 [tool.ruff]
 line-length = 120

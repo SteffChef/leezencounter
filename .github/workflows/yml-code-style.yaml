@@ -1,0 +1,33 @@
+name: YAML Code Style
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'model-training/**'
+      - '.github/**'
+  pull_request:
+    branches: ["*"]
+    paths:
+      - 'model-training/**'
+      - '.github/**'
+  release:
+    branches: [release/*]
+
+
+jobs:
+
+  yamllint:
+    name: yamllint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-python-env
+
+      - name: 🔍 Run yamllint
+        working-directory: model-training
+        run: |
+          source .venv/bin/activate
+          poe yamllint

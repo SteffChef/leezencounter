@@ -1,0 +1,8 @@
+[core]
+    remote = tinyaiot
+['remote "tinyaiot"']
+    url = s3://tinyaiot-storage
+    endpointurl = https://tinyaiot-storage.fra1.digitaloceanspaces.com
+    listobjects = false
+    use_ssl = false
+    ssl_verify = false

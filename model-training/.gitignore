@@ -172,3 +172,8 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# dvc-tracked files and folders
+/data
+/models
+/datasets
