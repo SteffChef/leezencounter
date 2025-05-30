@@ -7,6 +7,9 @@ readme = "README.md"
 dependencies = [
     "click>=8.2.0",
     "dvc[s3]>=3.59.2",
+    "onnx>=1.18.0",
+    "onnxruntime>=1.22.0",
+    "onnxslim>=0.1.54",
     "poethepoet>=0.22.1,<0.23",
     "ultralytics>=8.3.136",
     "wandb>=0.19.11",
@@ -32,6 +35,9 @@ ci = [
     "pre-commit",
     "yamllint>=1.37.1",
     "types-pyyaml>=6.0.12.20250516",
+]
+notebooks = [
+    "jupyter>=1.1.1",
 ]
 
 [tool.uv]

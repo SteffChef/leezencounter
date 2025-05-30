@@ -3,6 +3,8 @@
 This repository contains all the Python code that is necessary for model training and fine-tuning
 
 ### Setup
+Note: make sure to [install uv](https://docs.astral.sh/uv/guides/install-python/) as a package and dependency manager. 
+
 Run the ``setup.sh`` script for setting up the environment.
 ```bash
 bash setup.sh
@@ -45,7 +47,7 @@ dvc pull
 ├── data                // image data and other data sources for model training
 ├── datasets            // downloaded or created datasets for model training (e.g., COCO)
 ├── configs             // run configurations in YAML format for training jobs
-├── runs                // training runs' configurations including weights and evaluation plots
+├── tinyaiot-runs       // training runs' configurations including weights and evaluation plots
 ├── model_training      // main directory containing the code for model training
 ├── models              // directory for storing fine-tuned/trained models
 └── notebooks           // notebooks directory for testing and evaluating stuff

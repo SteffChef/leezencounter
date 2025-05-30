@@ -3,11 +3,14 @@ import os
 from datetime import datetime
 from pathlib import Path
 
+# isort: off
 import wandb
 import yaml
 from pydantic import ValidationError
 from ultralytics import YOLO
+# isort: on
 
+from model_training.core.constants import WANDB_PROJECT
 from model_training.core.schemas import TrainConfigSchema
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -66,21 +69,19 @@ class Trainer:
         Loads Ultralytics YOLO model from YAML config
         :return: Ultralytics YOLO model and corresponding model name
         """
-        model_name = self.config.model
-        if isinstance(model_name, os.PathLike):
-            model_name = Path(self.config.model).name
-        model = YOLO(self.config.model)
-        return model, model_name
+        model_path = Path(self.config.model)
+        model = YOLO(model_path.as_posix())
+        return model, model_path.stem
 
     def train(self) -> None:
         """
         Invokes Ultralytics training job
         :return: None
         """
-        train_args = self.config.train_args.dict()
+        train_args = self.config.train_args.model_dump()
         train_args.update(
             {
-                "project": (self.output_dir / "models").as_posix(),
+                "project": WANDB_PROJECT,
                 "name": self.run_name,
             }
         )
