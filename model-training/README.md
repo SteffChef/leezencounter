@@ -15,14 +15,8 @@ Enable tracking experiments with [Ultralytics](https://www.ultralytics.com/) and
 yolo settings wandb=True
 ```
 
-Enable data tracking with [DVC](https://dvc.org/doc/start) by running
+Enable data tracking with [DVC](https://dvc.org/doc/start) by running. Set the cloud storage reference by running
 ```bash
-dvc init --subdir # run from model-training directory
-```
-Next, set the cloud storage reference by running
-```bash
-dvc remote add -d tinyaiot s3://tinyaiot-storage/
-dvc remote modify tinyaiot endpointurl DIGITAL_OCEAN_ENDPOINT_URL
 dvc remote modify tinyaiot access_key_id DIGITAL_OCEAN_ACCESS_KEY_ID --local
 dvc remote modify tinyaiot secret_access_key DIGITAL_OCEAN_SECRET_KEY --local
 ```
