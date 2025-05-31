@@ -10,8 +10,8 @@
 #define SD_CS 5
 #include "camera_pins.h"
 
-const char* ssid = "";
-const char* password = "";
+const char* ssid = "iPhone von Cem";
+const char* password = "axc-213-29";
 
 const char* ntpServer = "pool.ntp.org";
 const long gmtOffset_sec = 3600;      
