@@ -34,4 +34,3 @@ train_args:
   flipud: 0.1
   fliplr: 0.5
   mosaic: 1.0
-

@@ -40,7 +40,9 @@ class TrainConfigSchema(BaseModel):
     output_dir: str | PathLike = Field(..., description="Directory to save model runs")
     model: str | PathLike = Field(..., description="YOLO model name or path to weights")
     train_args: YoloTrainArgs = Field(..., description="Training arguments for Ultralytics YOLO class")
-    data_split_args: Optional[DataSplitArgs] = Field(None, description="Data split arguments for Ultralytics YOLO class")
+    data_split_args: Optional[DataSplitArgs] = Field(
+        None, description="Data split arguments for Ultralytics YOLO class"
+    )
 
     class Config:
         extra = "forbid"

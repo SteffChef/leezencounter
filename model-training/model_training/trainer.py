@@ -12,7 +12,11 @@ from ultralytics.data.split import autosplit
 # isort: on
 
 from model_training.core.constants import WANDB_PROJECT
-from model_training.core.schemas import DataConfigSchema, DataSplitArgs, TrainConfigSchema
+from model_training.core.schemas import (
+    DataConfigSchema,
+    DataSplitArgs,
+    TrainConfigSchema,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
