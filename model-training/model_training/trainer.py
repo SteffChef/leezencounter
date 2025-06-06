@@ -5,6 +5,7 @@ from pathlib import Path
 
 # isort: off
 import wandb
+from wandb.integration.ultralytics import add_wandb_callback
 import yaml
 from pydantic import ValidationError
 from ultralytics import YOLO
@@ -37,10 +38,10 @@ class Trainer:
 
         self.config_path = config_path
         self.run_config: TrainConfigSchema = self._load_run_config()
-        self.data_config = self._load_data_config()
+        self.data_config: DataConfigSchema = self._load_data_config()
         self.model, self.model_name = self._load_model()
         self.run_name = self._generate_run_name()
-        self.output_dir = Path(self.run_config.output_dir) / self.run_name
+        self.output_dir: Path = Path(self.run_config.output_dir) / self.run_name
 
         self._init_wandb()
         if self.run_config.data_split_args:
@@ -90,10 +91,10 @@ class Trainer:
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
         return f"{self.run_config.project_name}_{self.model_name}_{timestamp}"
 
-    @staticmethod
-    def _init_wandb() -> None:
+    def _init_wandb(self) -> None:
         """Creates W&B session"""
         wandb.login(anonymous="allow", key=os.environ["WANDB_API_KEY"])
+        add_wandb_callback(self.model, enable_model_checkpointing=True)
 
     def _load_model(self) -> tuple[YOLO, str]:
         """
@@ -118,6 +119,25 @@ class Trainer:
         )
         self.model.train(**train_args)
         logger.info("Model training finished")
+
+    def validate(self) -> None:
+        """
+        Validates best-performing YOLO model on test set.
+        :return: None
+        """
+        best_model_path = Path(WANDB_PROJECT) / self.run_name / "weights" / "best.pt"
+        if not best_model_path.exists():
+            logger.error(f"No best model found at {best_model_path.as_posix()}")
+            return
+        best_model = YOLO(best_model_path.as_posix())
+        metrics = best_model.val(
+            project=WANDB_PROJECT,
+            name=(Path(self.run_name) / "validation").as_posix(),
+            data=self.run_config.train_args.data,
+            **self.run_config.val_args.model_dump()  # type: ignore
+        )
+        result_logs = '\n'.join(f"{metric}: {value}" for metric, value in metrics.results_dict.items())
+        logger.info(result_logs)
 
     @staticmethod
     def finish_run() -> None:

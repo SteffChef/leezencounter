@@ -1,5 +1,5 @@
 ---
-project_name: saddle_detection
+project_name: bike_detection
 output_dir: runs/
 model: models/yolo11n.pt
 
@@ -26,6 +26,9 @@ train_args:
   workers: 7
   amp: true
   dropout: 0.1
+  pose: 0.0
+  classes:
+    - 0
   # Augmentation Parameters
   hsv_s: 0.7    # hue
   hsv_h: 0.015  # saturation
