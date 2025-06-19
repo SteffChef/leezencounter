@@ -3,13 +3,20 @@ project_name: saddle_detection
 output_dir: runs/
 model: models/yolo11n.pt
 
+data_split_args:
+  weights:
+    - 0.7
+    - 0.2
+    - 0.1
+  annotated_only: true
+
 # for a full list of training and augmentation arguments see:
 # https://docs.ultralytics.com/modes/train/#train-settings
 train_args:
   mode: train
   task: detect
   # yamllint disable-line rule:line-length
-  data: ./datasets/esp_camera/geoinformatics_institute/20250523/YOLO/geoinformatics_institute_yolo_dataset.yaml
+  data: ./datasets/combined/YOLO/combined_yolo_dataset.yaml
   epochs: 150
   patience: 70
   save: true
