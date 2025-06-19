@@ -20,7 +20,7 @@ This repository contains all the Python code that is necessary for model trainin
 > Run all commands from the `model-training` directory!
 
 > [!NOTE]  
-> Make sure to [install uv](https://docs.astral.sh/uv/getting-started/installation/ as a package and dependency manager.
+> Make sure to [install uv](https://docs.astral.sh/uv/getting-started/installation/) as a package and dependency manager.
 > Run ``curl -LsSf https://astral.sh/uv/install.sh | sh`` from your terminal to install uv globally. Restart your terminal session after installation.
 
 #### Dependencies

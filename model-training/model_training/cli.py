@@ -12,6 +12,7 @@ def train(config):
     trainer = Trainer(config)
     try:
         trainer.train()
+        trainer.validate()
     finally:
         trainer.finish_run()
 
