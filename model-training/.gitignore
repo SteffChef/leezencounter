@@ -173,6 +173,9 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
+# Mac stuff
+**/.DS_Store
+
 # dvc-tracked files and folders
 /data
 /models
