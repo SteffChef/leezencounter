@@ -7,7 +7,7 @@ from ppq.executor import TorchExecutor
 from ultralytics.data.utils import check_cls_dataset, check_det_dataset
 from ultralytics.engine.validator import BaseValidator
 from ultralytics.nn.autobackend import AutoBackend
-from ultralytics.nn.modules.head import Detect, Pose
+from ultralytics.nn.modules.head import Detect
 from ultralytics.utils import LOGGER, TQDM, callbacks, colorstr, emojis
 from ultralytics.utils.checks import check_imgsz
 from ultralytics.utils.ops import Profile
@@ -21,7 +21,6 @@ from model_training.utils.quantization import quantize_yolo
 
 
 class QuantizedModelValidator(BaseValidator):
-
     @staticmethod
     def ppq_graph_init(quant_func: Callable, device, native_path=None, **kwargs):
         """
@@ -43,11 +42,8 @@ class QuantizedModelValidator(BaseValidator):
     def ppq_graph_inference(executor, task, inputs, device):
         """ppq graph inference"""
         graph_outputs = executor(inputs)
-        if task  == "detect":
-            x = [
-                torch.cat((graph_outputs[i], graph_outputs[i + 1]), 1)
-                for i in range(0, 6, 2)
-            ]
+        if task == "detect":
+            x = [torch.cat((graph_outputs[i], graph_outputs[i + 1]), 1) for i in range(0, 6, 2)]
             detect_model = Detect(nc=80, ch=[32, 64, 128])
             detect_model.stride = [8.0, 16.0, 32.0]
             detect_model.to(device)
@@ -56,11 +52,12 @@ class QuantizedModelValidator(BaseValidator):
             return y
         else:
             raise NotImplementedError(f"{task} is not supported.")
+
     @smart_inference_mode()
     def __call__(self, trainer=None, model=None):
         """Executes validation process, running inference on dataloader and computing performance metrics."""
         self.training = trainer is not None
-        augment = self.args.augment and (not self.training)
+        augment = self.args.augment and (not self.training)  # noqa: F841
         if self.training:
             self.device = trainer.device
             self.data = trainer.data
@@ -70,15 +67,11 @@ class QuantizedModelValidator(BaseValidator):
             model = model.half() if self.args.half else model.float()
             # self.model = model
             self.loss = torch.zeros_like(trainer.loss_items, device=trainer.device)
-            self.args.plots &= trainer.stopper.possible_stop or (
-                    trainer._epoch == trainer.epochs - 1
-            )
+            self.args.plots &= trainer.stopper.possible_stop or (trainer._epoch == trainer.epochs - 1)
             model.eval()
         else:
             if str(self.args.model).endswith(".yaml"):
-                LOGGER.warning(
-                    "WARNING ⚠️ validating an untrained model YAML will result in 0 mAP."
-                )
+                LOGGER.warning("WARNING ⚠️ validating an untrained model YAML will result in 0 mAP.")
             callbacks.add_integration_callbacks(self)
 
             model = AutoBackend(
@@ -101,41 +94,27 @@ class QuantizedModelValidator(BaseValidator):
             if engine:
                 self.args.batch = model.batch_size
             elif not pt and not jit:
-                self.args.batch = model.metadata.get(
-                    "batch", 1
-                )  # export.py models default to batch-size 1
-                LOGGER.info(
-                    f"Setting batch={self.args.batch} input of shape ({self.args.batch}, 3, {imgsz}, {imgsz})"
-                )
+                self.args.batch = model.metadata.get("batch", 1)  # export.py models default to batch-size 1
+                LOGGER.info(f"Setting batch={self.args.batch} input of shape ({self.args.batch}, 3, {imgsz}, {imgsz})")
 
             if str(self.args.data).split(".")[-1] in {"yaml", "yml"}:
                 self.data = check_det_dataset(self.args.data)
             elif self.args.task == "classify":
                 self.data = check_cls_dataset(self.args.data, split=self.args.split)
             else:
-                raise FileNotFoundError(
-                    emojis(
-                        f"Dataset '{self.args.data}' for task={self.args.task} not found ❌"
-                    )
-                )
+                raise FileNotFoundError(emojis(f"Dataset '{self.args.data}' for task={self.args.task} not found ❌"))
 
             if self.device.type in {"cpu", "mps"}:
-                self.args.workers = (
-                    0  # faster CPU val as time dominated by inference, not dataloading
-                )
+                self.args.workers = 0  # faster CPU val as time dominated by inference, not dataloading
 
             if not pt:
                 self.args.rect = False  # set to false
 
             self.stride = model.stride  # used in get_dataloader() for padding
-            self.dataloader = self.dataloader or self.get_dataloader(
-                self.data.get(self.args.split), self.args.batch
-            )
+            self.dataloader = self.dataloader or self.get_dataloader(self.data.get(self.args.split), self.args.batch)
 
             model.eval()
-            model.warmup(
-                imgsz=(1 if pt else self.args.batch, 3, imgsz, imgsz)
-            )  # warmup
+            model.warmup(imgsz=(1 if pt else self.args.batch, 3, imgsz, imgsz))  # warmup
 
         self.run_callbacks("on_val_start")
         dt = (

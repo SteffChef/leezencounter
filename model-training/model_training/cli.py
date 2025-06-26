@@ -1,9 +1,18 @@
+from pathlib import Path
+
 import click
 
+from model_training.core.schemas import QuantizationAwareTrainingConfig
+from model_training.qat import QuantizationAwareTrainingPipeline
 from model_training.trainer import Trainer
 
 
-@click.command()
+@click.group()
+def cli():
+    pass
+
+
+@cli.command()
 @click.argument("config", type=click.Path(exists=True), required=True)
 def train(config):
     """
@@ -17,10 +26,12 @@ def train(config):
         trainer.finish_run()
 
 
-if __name__ == "__main__":
-    # This allows the module to be called directly
-    train()
-else:
-    # This is the entry point when used as a module
-    def main():
-        train()
+@cli.command()
+@click.argument("config", type=click.Path(exists=True), required=True)
+def qat(config: Path):
+    try:
+        train_config = QuantizationAwareTrainingConfig.from_yaml(config)
+        pipeline = QuantizationAwareTrainingPipeline(train_config)
+        pipeline.run()
+    except Exception as e:
+        raise e

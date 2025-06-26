@@ -13,11 +13,7 @@ from ultralytics.data.split import autosplit
 # isort: on
 
 from model_training.core.constants import WANDB_PROJECT
-from model_training.core.schemas import (
-    DataConfigSchema,
-    DataSplitArgs,
-    TrainConfigSchema,
-)
+from model_training.core.schemas import DataConfig, DataSplitArgs, TrainConfig
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -37,8 +33,8 @@ class Trainer:
             raise ValueError("Invalid datatype for config_path, expected Path or str")
 
         self.config_path = config_path
-        self.run_config: TrainConfigSchema = self._load_run_config()
-        self.data_config: DataConfigSchema = self._load_data_config()
+        self.run_config: TrainConfig = self._load_run_config()
+        self.data_config: DataConfig = self._load_data_config()
         self.model, self.model_name = self._load_model()
         self.run_name = self._generate_run_name()
         self.output_dir: Path = Path(self.run_config.output_dir) / self.run_name
@@ -55,14 +51,14 @@ class Trainer:
         :param data_path: Absolute path to images directory
         :return: Creates autosplit_train.txt, autosplit_val.txt, autosplit_test.txt
         """
-        autosplit(path=(Path(data_path) / 'images').as_posix(), **split_args.model_dump())
+        autosplit(path=(Path(data_path) / "images").as_posix(), **split_args.model_dump())
 
-    def _load_run_config(self) -> TrainConfigSchema:
+    def _load_run_config(self) -> TrainConfig:
         """Loads and validates YAML config file"""
         with open(self.config_path, "r") as f:
             raw_config = yaml.safe_load(f)
         try:
-            return TrainConfigSchema(**raw_config)
+            return TrainConfig(**raw_config)
         except ValidationError as e:
             logger.error("❌ Run config validation error:\n%s", e)
             raise SystemExit(1)
@@ -70,12 +66,12 @@ class Trainer:
             logger.error("Invalid argument for run configuration: \n%s", e)
             raise SystemExit(1)
 
-    def _load_data_config(self) -> DataConfigSchema:
+    def _load_data_config(self) -> DataConfig:
         """Loads and validates YAML config file for a YOLO dataset."""
         with open(self.run_config.train_args.data, "r") as f:
             raw_config = yaml.safe_load(f)
         try:
-            return DataConfigSchema(**raw_config)
+            return DataConfig(**raw_config)
         except ValidationError as e:
             logger.error("❌ Data config validation error:\n%s", e)
             raise SystemExit(1)
@@ -134,9 +130,9 @@ class Trainer:
             project=WANDB_PROJECT,
             name=(Path(self.run_name) / "validation").as_posix(),
             data=self.run_config.train_args.data,
-            **self.run_config.val_args.model_dump()  # type: ignore
+            **self.run_config.val_args.model_dump(),  # type: ignore
         )
-        result_logs = '\n'.join(f"{metric}: {value}" for metric, value in metrics.results_dict.items())
+        result_logs = "\n".join(f"{metric}: {value}" for metric, value in metrics.results_dict.items())
         logger.info(result_logs)
 
     @staticmethod

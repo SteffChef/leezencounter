@@ -1,306 +1,375 @@
+import json
+import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Iterable, Literal, Any, Sequence
+from typing import Any, Literal, Optional, Sequence
 
-import numpy as np
 import onnxruntime as ort
 import ppq.lib as PFL
 import torch
-from ppq.IR import BaseGraph, TrainableGraph
-from ppq.api import get_target_platform
-from ppq.api.interface import load_onnx_graph
 from ppq.core import TargetPlatform
-from ppq.core.quant import QuantizationVisibility
 from ppq.executor import TorchExecutor
+from ppq.IR import BaseGraph, TrainableGraph
 from ppq.parser import NativeExporter
-from ppq.quantization.optim.refine import QuantizeSimplifyPass, QuantizeFusionPass, QuantAlignmentPass
-from ppq.quantization.optim.parameters import ParameterQuantizePass, PassiveParameterQuantizePass
-from ppq.quantization.optim.calibration import RuntimeCalibrationPass
 from torch import Tensor
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from ultralytics import YOLO
 from ultralytics.utils.metrics import DetMetrics
 
-from model_training.core.constants import TARGET_PLATFORM
-from model_training.utils.datasets import TrainDataset, CalibrationDataset
+from model_training.core.constants import TXT_ENCODING
+from model_training.core.schemas import (
+    QuantizationAwareTrainingArgs,
+    QuantizationAwareTrainingConfig,
+)
+from model_training.utils.datasets import CalibrationDataset, TrainDataset
+from model_training.utils.quantization import QuantizationSetup
 from model_training.utils.validators import QuantDetectionValidator
 
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__)
 
-class QatTrainer:
-    """
-    Member Functions:
-    1. epoch(): do one epoch training.
-    2. step(): do one step training.
-    3. eval(): evaluation on given dataset.
-    4. save(): save trained model.
-    5. clear(): clear training cache.
 
-    PPQ will create a TrainableGraph on you graph, a wrapper class that
-        implements a set of useful functions that enable training. You are recommended
-        to edit its code to add new feature on graph.
-
-    Optimizer controls the learning process and determine the parameters values ends up learning,
-        you can rewrite the defination of optimizer and learning scheduler in __init__ function.
-        Tuning them carefully, as hyperparameters will greatly affects training result.
-    """
+class QuantizationAwareTrainer:
+    """Trainer class for quantization-aware training of YOLO models"""
 
     def __init__(
-            self,
-            onnx_path: Path,
-            yolo_model_path: Path,
-            dataset_yaml_file_path: Path,
-            device: Literal['cpu', 'cuda'] = 'cpu',
+        self,
+        ppq_graph: BaseGraph,
+        yolo_model: str | Path,
+        onnx_model_path: Path,
+        dataset_yaml_path: Path,
+        training_arguments: QuantizationAwareTrainingArgs,
+        num_bits: Literal[8, 16],
     ) -> None:
         """
-        Quantization-aware training interface.
-        :param onnx_path: Path to ONNX model
-        :param yolo_model_path: Path to YOLO torch model
-        :param dataset_yaml_file_path: Path to dataset yaml file (used by Ultralytics)
-        :param device: Device type (CPU or GPU). Only cpu and cuda are supported.
+        Initialize QAT pipeline
+        :param ppq_graph: PPQ BaseGraph for quantized model
+        :param yolo_model: Path to YOLO model
+        :param onnx_model_path: Path to original ONNX model
+        :param dataset_yaml_path: Path to dataset YAML file. Used by Ultralytics.
+        :param training_arguments: Training arguments.
+        :param num_bits: Precision of quantized model
         """
+        self.ppq_graph = ppq_graph
+        self.yolo_model = yolo_model if isinstance(yolo_model, Path) else Path(yolo_model)
+        self.onnx_model_path = onnx_model_path
+        self.dataset_yaml_path = dataset_yaml_path
+        self.num_bits = num_bits
+        self.epochs = training_arguments.epochs
+        self.learning_rate = training_arguments.learning_rate
+        self.device = training_arguments.device
+        self.scheduling = training_arguments.scheduling
+        self.scheduler_params = training_arguments.scheduler_params
 
-        if not yolo_model_path.exists():
-            raise FileNotFoundError(f"No such file: {yolo_model_path.as_posix()}")
-        if not yolo_model_path.with_suffix('.pt'):
-            raise IOError(f"{yolo_model_path.as_posix()} if not a torch model. Expected .pt file.")
+        # training state
+        self._curr_epoch = 0
+        self._curr_step = 0
+        self._best_pr = 0.0
+        self._best_metrics: list[dict[str, Any]] = []
+        self._best_epoch = 0
 
-        if not (dataset_yaml_file_path.exists() and dataset_yaml_file_path.is_file()):
-            raise FileNotFoundError(f"{dataset_yaml_file_path.as_posix()} not a file or does not exist.")
-        if not (dataset_yaml_file_path.with_suffix('.yaml') or dataset_yaml_file_path.with_suffix('.yml')):
-            raise IOError(f"{dataset_yaml_file_path.as_posix()} not a yaml file.")
-
-        self._onnx_path = onnx_path
-        self._graph = self._get_onnx_graph(self._onnx_path)
-        self._executor = TorchExecutor(self._graph, device=device)
-        self._training_graph = TrainableGraph(self._graph)
+        # init QAT components
+        self._executor = TorchExecutor(graph=self.ppq_graph, device=self.device)
+        self._training_graph = TrainableGraph(self.ppq_graph)
         self._loss_fn = torch.nn.MSELoss()
-        self._device = device
-        self._yolo_model_path = yolo_model_path
-        self._dataset_yaml_file_path = dataset_yaml_file_path
+        self._lr_scheduler = None
 
+        # set up optimizer and gradients for trainable parameters
+        self._optimizer = self._get_optimizer()
+        self._enable_gradients()
+
+    @property
+    def current_epoch(self) -> int:
+        """Get current epoch number."""
+        return self._curr_epoch
+
+    @property
+    def current_step(self) -> int:
+        """Get current step number."""
+        return self._curr_step
+
+    @property
+    def best_precision_recall(self) -> float:
+        """Get best metric achieved so far."""
+        return self._best_pr
+
+    @property
+    def best_metrics(self) -> list[dict]:
+        """Get best metric achieved so far."""
+        return self._best_metrics
+
+    def _get_optimizer(self) -> torch.optim.Optimizer:
+        optimizer = torch.optim.SGD(
+            params=[{"params": self._training_graph.parameters()}],
+            lr=self.learning_rate,
+        )
+        if self.scheduling:
+            if not self.scheduler_params:
+                logger.info("No scheduling parameters provided, using default scheduling.")
+            match self.scheduling:
+                case "linear":
+                    self._lr_scheduler = torch.optim.lr_scheduler.LinearLR(optimizer=optimizer, **self.scheduler_params)
+                case _:
+                    raise NotImplementedError(f"No learning rate scheduling defined for {self.scheduling}")
+        return optimizer
+
+    def _enable_gradients(self) -> None:
         for tensor in self._training_graph.parameters():
             tensor.requires_grad = True
-        self._optimizer = torch.optim.SGD(
-            params=[{"params": self._training_graph.parameters()}], lr=3e-5
+
+    def train_epoch(self, train_dataloader: DataLoader) -> float:
+        """Train for one epoch and return average epoch loss"""
+        epoch_loss = 0.0
+        num_batches = len(train_dataloader)
+
+        if num_batches == 0:
+            raise IOError("No training data found.")
+
+        progress_bar = tqdm(
+            train_dataloader, desc=f"Epoch {self._curr_epoch}", total=num_batches if num_batches > 0 else None
         )
-        self._lr_scheduler = None
-        self._epoch = 0
 
-    @staticmethod
-    def _get_train_dataloader(train_dataset_path: Path) -> DataLoader:
-        train_set = TrainDataset(train_dataset_path)
-        return DataLoader(train_set, batch_size=1, shuffle=True)
-
-    @staticmethod
-    def _get_calib_dataloader(calib_dataset_path: Path) -> DataLoader:
-        calib_set = CalibrationDataset(calib_dataset_path)
-        return DataLoader(dataset=calib_set, batch_size=1, shuffle=False)
-
-    @staticmethod
-    def _get_onnx_graph(onnx_path: Path) -> BaseGraph:
-        return load_onnx_graph(onnx_path.as_posix())
-
-    def _generate_run_name(self) -> str:
-        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-        return f"qat_{self._yolo_model_path.stem}_{timestamp}"
-
-    @staticmethod
-    def _create_output_dir(run_name: str) -> Path:
-        output_dir = Path('qat-runs') / run_name
-        output_dir.mkdir(exist_ok=False)
-        return output_dir
-
-    @staticmethod
-    def _get_target_platform(num_bits: int) -> TargetPlatform:
-        return get_target_platform(TARGET_PLATFORM, num_bits)
-
-    def _run_epoch(self, dataloader: Iterable) -> float:
-        """Do one epoch Training with given dataloader.
-
-        Given dataloader is supposed to be a iterable container of batched data,
-            for example it can be a list of [img(torch.Tensor), label(torch.Tensor)].
-
-        If your data has other layout that is not supported by this function,
-            then you are supposed to rewrite the logic of epoch function by yourself.
-        """
-        epoch_loss = 0
-        for bidx, batch in enumerate(
-                tqdm(dataloader, desc=f"Epoch {self._epoch}: ", total=len(dataloader))
-        ):
-            data = batch
-            data = data.to(self._device)
-            _, loss = self.step(data)
+        for batch_idx, batch in enumerate(progress_bar):
+            data = batch.to(self.device)
+            _, loss = self._training_step(data)
             epoch_loss += loss
 
-        self._epoch += 1
-        print(f"Epoch Loss: {epoch_loss / len(dataloader):.4f}")
-        return epoch_loss
+            # Update progress bar
+            if num_batches > 0:
+                progress_bar.set_postfix({"Loss": f"{loss:.4f}"})
 
-    def step(self, data: torch.Tensor) -> tuple[list[Tensor], Any]:
-        """Do one step Training with given data(torch.Tensor) and label(torch.Tensor).
+        avg_loss = epoch_loss / (batch_idx + 1) if batch_idx >= 0 else 0.0
+        self._curr_epoch += 1
 
-        This one-step-forward function assume that your model have only one input and output variable.
+        logger.info(f"Epoch {self._curr_epoch - 1} completed. Average Loss: {avg_loss:.4f}")
+        return avg_loss
 
-        If the training model has more input or output variable, then you might need to
-            rewrite this function by yourself.
-        """
-        # quantized model inference
-        pred = self._executor.forward_with_gradient(data)
-        # fp32 model inference
-        session = ort.InferenceSession(self._onnx_path.as_posix())
-        input_name = session.get_inputs()[0].name
-        output_fp32 = session.run(None, {input_name: np.array(data.cpu())})
-        # init QAT training loss
-        loss = torch.nn.MSELoss().to(self._device)
-        for i in range(len(pred)):
-            loss += self._loss_fn(
-                pred[i], torch.Tensor(output_fp32[i]).to(self._device)
-            )
-        loss.backward()
-        if self._lr_scheduler is not None:
-            self._lr_scheduler.step(epoch=self._epoch)
+    def _training_step(self, data: torch.Tensor) -> tuple[list[Tensor], Any]:
+        """Performs one training step one a given batch"""
+        # Forward pass through quantized model
+        quantized_predictions = self._executor.forward_with_gradient(data)
+
+        # Forward pass through original FP32 model
+        fp32_predictions = self._get_fp32_predictions(data)
+
+        # Compute loss between quantized and FP32 predictions
+        total_loss = 0.0
+        for i, (quant_pred, fp32_pred) in enumerate(zip(quantized_predictions, fp32_predictions)):
+            fp32_tensor = torch.tensor(fp32_pred, device=self.device, dtype=torch.float32)
+            loss = self._loss_fn(quant_pred, fp32_tensor)
+            total_loss += loss
+
+        # Backward pass
+        total_loss.backward()
+
+        # Optimizer step
         self._optimizer.step()
         self._training_graph.zero_grad()
 
-        return pred, loss.item()
+        # Update learning rate if scheduler is available
+        if self._lr_scheduler:
+            self._lr_scheduler.step(epoch=self._curr_epoch)
 
-    def eval(self) -> DetMetrics:
-        """Do Evaluation process on given dataloader.
+        self._curr_step += 1
+        return quantized_predictions, total_loss.item()
 
-        Split your dataset into training and evaluation dataset at first, then
-            use eval function to monitor model performance on evaluation dataset.
+    def _get_fp32_predictions(self, data: torch.Tensor) -> Sequence[Any]:
+        """Get predictions from original FP32 ONNX model.
+
+        :param data: Input tensor
+        returns: List of FP32 model predictions
+        """
+        try:
+            session = ort.InferenceSession(self.onnx_model_path.as_posix())
+            input_name = session.get_inputs()[0].name
+            numpy_data = data.cpu().numpy()
+            return session.run(None, {input_name: numpy_data})
+        except Exception as e:
+            raise RuntimeError(f"Failed to run FP32 inference: {e}") from e
+
+    def evaluate(self, save_metrics: bool, file_path: Optional[Path] = None):
+        """
+        Do Evaluation process on given dataloader.
+
+        :param save_metrics: Whether to save metrics during evaluation in CSV format.
+        :param file_path: Path to store evaluation results.
         """
 
-        model = YOLO(self._yolo_model_path)
-        model.to(self._device)
+        model = YOLO(self.yolo_model)
+        model.to(self.device)
         results = model.val(
-            data=self._dataset_yaml_file_path.as_posix(),
+            data=self.dataset_yaml_path.as_posix(),
+            # TODO: get from training arguments
             imgsz=640,
-            device=self._device,
+            device=self.device,
             validator=QuantDetectionValidator(),
-            split='test'
+            split="test",
         )
-        return results.summary()
+        if save_metrics and results:
+            csv_metrics = results.to_csv()
+            with file_path.open("w", encoding=TXT_ENCODING) as f:
+                f.write(csv_metrics)
 
-    def save(self, espdl_file_path: Path, native_file_path: Path) -> BaseGraph:
-        """Save model to given path.
-        Saved model can be read by ppq.api.load_native_model function.
+        return results
 
-        :param espdl_file_path: path to save .espdl model file
-        :param native_file_path: path to save native model file
-        :returns quantized graph
+    def save_model(self, espdl_path: Path, native_path: Path) -> None:
         """
-        # export .espdl
-        PFL.Exporter(platform=TargetPlatform.ESPDL_INT8).export(
-            file_path=espdl_file_path.as_posix(), graph=self._graph
-        )
-        qat_graph = self._graph
-        # export .native
-        exporter = NativeExporter()
-        exporter.export(file_path=native_file_path.as_posix(), graph=self._graph)
-        return qat_graph
-
-    def train(
-            self,
-            train_dataset_path: Path,
-            calib_dataset_path: Path,
-            epochs: int,
-            calib_steps: int = 32,
-            num_bits: int = 8,
-            input_shape: Sequence[int] = None
-    ) -> BaseGraph:
+        Saves intermediate espdl and native models during training.
+        :param espdl_path: Path to espdl model file, including file name.
+        :param native_path: Path to native model file, including file name.
         """
-        Runs a QAT job
-        :param train_dataset_path: Path to training dataset.
-        :param calib_dataset_path: Path to calibration dataset.
-        :param epochs: Number of epochs
-        :param calib_steps: Number of calibration steps. Defaults to 32.
-        :param num_bits: Number of bits used for quantization. Defaults to 8. Only int8 and int16 are available.
-        :param input_shape: Tensor shape of YOLO model as [B, C, H, W]. Defaults to [1, 3, 640, 640] for Yolo11n.
-        :return: Quantized graph from last epoch (not necessarily the best quantized graph).
+
+        match self.num_bits:
+            case 8:
+                espdl_exporter = PFL.Exporter(platform=TargetPlatform.ESPDL_INT8)
+            case 16:
+                espdl_exporter = PFL.Exporter(platform=TargetPlatform.ESPDL_INT16)
+            case _:
+                raise IOError(f"Invalid number of bits {self.num_bits}. Only 8 or 16 are supported.")
+        espdl_exporter.export(espdl_path.as_posix(), self.ppq_graph)
+
+        native_exporter = NativeExporter()
+        native_exporter.export(native_path.as_posix(), self.ppq_graph)
+
+    def update_metrics(self, scores: DetMetrics) -> bool:
         """
-        if epochs < 1:
-            raise ValueError(f"Train at least for one epoch")
+        Keeps track of best metrics from model runs
+        :param scores: Detection Metrics from Ultralytics
+        """
+        if scores:
+            # if Precision-Recall is the highest, keep track of best model results
+            if scores.curves_results[0] > self.best_precision_recall:
+                self._best_metrics = json.loads(scores.to_json())
+                self._best_epoch = self.current_epoch
+                return True
+        return False
 
-        if input_shape is None:
-            input_shape = [1, 3, 640, 640]
 
-        quantizer = PFL.Quantizer(platform=self._get_target_platform(num_bits), graph=onnx_graph)
-        dispatching_table = PFL.Dispatcher(graph=onnx_graph, method="conservative").dispatch(
-            quantizer.quant_operation_types
+class QuantizationAwareTrainingPipeline:
+    """Implements the full pipline for YOLO quantization-aware training."""
+
+    def __init__(self, config: QuantizationAwareTrainingConfig) -> None:
+        """Initialize pipeline"""
+        self.config = config
+
+        self.model_path = Path(self.config.model)
+        self.device = config.training_args.device
+        self.input_shape = config.input_shape
+        # convert to list if not already
+        if not isinstance(self.input_shape, list):
+            self.input_shape = list(self.input_shape)
+        # add batch dimension of one
+        self.input_shape = [1] + self.input_shape
+
+        # init components
+        self.quantization_setup: Optional[QuantizationSetup] = None
+        self.trainer: Optional[QuantizationAwareTrainer] = None
+
+    def run(self) -> None:
+        logger.info("Starting QAT pipeline")
+
+        logger.info("Setting up quantization")
+        self._setup_quantization()
+
+        logger.info("Running calibration")
+        self._calibrate()
+
+        logger.info("Configure training")
+        self._initialize_trainer()
+
+        logger.info("Preparing training")
+        self._run_training_loop()
+
+        logger.info("Training pipline completed successfully")
+
+    def _setup_quantization(self) -> None:
+        onnx_model_path = Path(self.config.onnx_model_path)
+
+        self.quantization_setup = QuantizationSetup(
+            onnx_path=onnx_model_path, device=self.device, quantization_settings=self.config.quantization_args
         )
-        dispatching_override = None
 
-        # override dispatching result
-        if dispatching_override is not None:
-            for opname, platform in dispatching_override.items():
-                if opname not in onnx_graph.operations:
-                    continue
-                assert isinstance(platform, int) or isinstance(platform, TargetPlatform), (
-                    f"Your dispatching_override table contains a invalid setting of operation {opname}, "
-                    "All platform setting given in dispatching_override table is expected given as int or TargetPlatform, "
-                    f"however {type(platform)} was given."
-                )
-                dispatching_table[opname] = TargetPlatform(platform)
+        self.quantization_setup.load_model()
+        self.quantization_setup.setup_quantizer()
+        dispatching_table = self.quantization_setup.create_dispatching_table()
 
-        for opname, platform in dispatching_table.items():
-            if platform == TargetPlatform.UNSPECIFIED:
-                dispatching_table[opname] = TargetPlatform(quantizer.target_platform)
-
-        # init quant information
-        for op in self._graph.operations.values():
-            quantizer.quantize_operation(
-                op_name=op.name, platform=dispatching_table[op.name]
-            )
-
-        executor = TorchExecutor(graph=self._graph, device=self._device)
-        executor.tracing_operation_meta(inputs=torch.zeros(input_shape).to(self._device))
-
-        train_dataloader = self._get_train_dataloader(train_dataset_path)
-        calib_dataloader = self._get_calib_dataloader(calib_dataset_path)
-
-        pipeline = PFL.Pipeline(
-            [
-                QuantizeSimplifyPass(),
-                QuantizeFusionPass(activation_type=quantizer.activation_fusion_types),
-                ParameterQuantizePass(),
-                RuntimeCalibrationPass(method="kl"),
-                PassiveParameterQuantizePass(
-                    clip_visiblity=QuantizationVisibility.EXPORT_WHEN_ACTIVE
-                ),
-                QuantAlignmentPass(elementwise_alignment="Align to Output"),
-            ]
+        self.quantization_setup.initialize_quantization(
+            dispatching_table=dispatching_table, input_shape=self.input_shape
         )
 
-        pipeline.optimize(
-            calib_steps=calib_steps,
-            collate_fn=self._collate_fn,
-            graph=self._graph,
-            dataloader=calib_dataloader,
-            executor=executor
+    def _calibrate(self) -> None:
+        if self.quantization_setup is None:
+            raise RuntimeError("Quantization setup must be completed before calibration")
+
+        calibration_dataset = CalibrationDataset(
+            path=Path(self.config.calib_dataset_path),
+            img_size=(self.input_shape[2], self.input_shape[3]),
+        )
+
+        calibration_dataloader = DataLoader(
+            calibration_dataset,
+            batch_size=1,  # only batch size of 1 is supported for calibration
+            shuffle=True,
+            num_workers=self.config.num_workers,
+        )
+
+        calibration_pipeline = self.quantization_setup.create_calibration_pipeline()
+        self.quantization_setup.run_calibration(calibration_dataloader, calibration_pipeline)
+
+    def _initialize_trainer(self) -> None:
+        self.trainer = QuantizationAwareTrainer(
+            ppq_graph=self.quantization_setup.graph,
+            yolo_model=self.model_path,
+            onnx_model_path=Path(self.config.onnx_model_path),
+            dataset_yaml_path=Path(self.config.dataset_yaml_file_path),
+            training_arguments=self.config.training_args,
+            num_bits=self.config.quantization_args.num_bits,
+        )
+
+    def _run_training_loop(self) -> None:
+        training_dataset = TrainDataset(
+            path=Path(self.config.train_dataset_path),
+            img_size=(self.input_shape[2], self.input_shape[3]),
+        )
+        # TODO: load subset from autosplit_train.txt or from split ratio
+        training_dataloader = DataLoader(
+            dataset=training_dataset,
+            batch_size=1,  # only batch_size=1 is supported
+            shuffle=True,
+            num_workers=self.config.num_workers,
         )
 
         run_name = self._generate_run_name()
         output_dir = self._create_output_dir(run_name)
 
-        for epoch in range(epochs):
-            epoch_run_name = f"qat_{self._yolo_model_path.stem}_epoch{epoch}"
-            _ = self._run_epoch(train_dataloader)
-            qat_graph = self.save(
-                output_dir / f"{epoch_run_name}.espdl",
-                output_dir / f"{epoch_run_name}.native"
-            )
-            detection_summary = self.eval()
-            print(detection_summary)
+        logger.info(f"Start training for {self.config.training_args.epochs} epochs")
+        for epoch in range(self.config.training_args.epochs):
+            epoch_loss = self.trainer.train_epoch(training_dataloader)
 
-        return qat_graph
+            model_name = f"qat_yolo11n_epoch_{epoch}"
+            espdl_path = output_dir / "espdl" / f"{model_name}.espdl"
+            native_path = output_dir / "native" / f"{model_name}.native"
 
-    def clear(self):
-        """Clear training state."""
-        for tensor in self._training_graph.parameters():
-            tensor.requires_grad = False
-            tensor._grad = None
+            self.trainer.save_model(espdl_path, native_path)
 
-    def _collate_fn(self, batch: torch.tensor) -> torch.tensor:
-        return batch.type(torch.float).to(self._device)
+            metrics_path = output_dir / "metrics" / f"{model_name}_metrics.csv"
+            metrics = self.trainer.evaluate(self.config.save_metrics, metrics_path)
+
+            if self.trainer.update_metrics(metrics):
+                best_espdl_model = output_dir / "espdl" / "best.espdl"
+                best_native_model = output_dir / "native" / "best.native"
+                self.trainer.save_model(best_espdl_model, best_native_model)
+
+            logger.info(f"Epoch: {epoch + 1}: Loss: {epoch_loss:.4f}")
+
+    def _generate_run_name(self) -> str:
+        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        return f"qat_{self.model_path.stem}_{timestamp}"
+
+    @staticmethod
+    def _create_output_dir(run_name: str) -> Path:
+        output_dir = Path("qat-runs") / run_name
+        for sub_dir in ["espdl", "native", "metrics"]:
+            (output_dir / sub_dir).mkdir(parents=True, exist_ok=True)
+        return output_dir
