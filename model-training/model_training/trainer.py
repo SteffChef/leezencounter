@@ -35,7 +35,8 @@ class Trainer:
         self.config_path = config_path
         self.run_config: TrainConfig = self._load_run_config()
         self.data_config: DataConfig = self._load_data_config()
-        self.model, self.model_name = self._load_model()
+        self.model = self._load_model()
+        self.model_name = Path(self.run_config.model).stem
         self.run_name = self._generate_run_name()
         self.output_dir: Path = Path(self.run_config.output_dir) / self.run_name
 
@@ -92,14 +93,14 @@ class Trainer:
         wandb.login(anonymous="allow", key=os.environ["WANDB_API_KEY"])
         add_wandb_callback(self.model, enable_model_checkpointing=True)
 
-    def _load_model(self) -> tuple[YOLO, str]:
+    def _load_model(self) -> YOLO:
         """
         Loads Ultralytics YOLO model from YAML config
         :return: Ultralytics YOLO model and corresponding model name
         """
         model_path = Path(self.run_config.model)
         model = YOLO(model_path.as_posix())
-        return model, model_path.stem
+        return model
 
     def train(self) -> None:
         """

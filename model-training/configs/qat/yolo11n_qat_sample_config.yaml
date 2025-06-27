@@ -15,6 +15,9 @@ onnx_model_path: ./models/onnx/yolo11n.onnx
 training_args:
   epochs: 1
   device: 'cpu'
+  scheduler_params:
+    # good starting point
+    # start_factor: 0.01
 
 quantization_args:
   calib_steps: 32

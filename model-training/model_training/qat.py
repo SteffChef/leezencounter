@@ -7,10 +7,12 @@ from typing import Any, Literal, Optional, Sequence
 import onnxruntime as ort
 import ppq.lib as PFL
 import torch
+import yaml
 from ppq.core import TargetPlatform
 from ppq.executor import TorchExecutor
 from ppq.IR import BaseGraph, TrainableGraph
 from ppq.parser import NativeExporter
+from pydantic import ValidationError
 from torch import Tensor
 from torch.utils.data import DataLoader
 from tqdm import tqdm
@@ -19,6 +21,7 @@ from ultralytics.utils.metrics import DetMetrics
 
 from model_training.core.constants import TXT_ENCODING
 from model_training.core.schemas import (
+    DataConfig,
     QuantizationAwareTrainingArgs,
     QuantizationAwareTrainingConfig,
 )
@@ -130,6 +133,8 @@ class QuantizationAwareTrainer:
             train_dataloader, desc=f"Epoch {self._curr_epoch}", total=num_batches if num_batches > 0 else None
         )
 
+        # TODO: log results to W&B - precision, recall, f1, mAP50, mAP50-95
+
         for batch_idx, batch in enumerate(progress_bar):
             data = batch.to(self.device)
             _, loss = self._training_step(data)
@@ -161,7 +166,7 @@ class QuantizationAwareTrainer:
             total_loss += loss
 
         # Backward pass
-        total_loss.backward()
+        total_loss.backward()  # type: ignore
 
         # Optimizer step
         self._optimizer.step()
@@ -172,7 +177,7 @@ class QuantizationAwareTrainer:
             self._lr_scheduler.step(epoch=self._curr_epoch)
 
         self._curr_step += 1
-        return quantized_predictions, total_loss.item()
+        return quantized_predictions, total_loss.item()  # type: ignore
 
     def _get_fp32_predictions(self, data: torch.Tensor) -> Sequence[Any]:
         """Get predictions from original FP32 ONNX model.
@@ -204,7 +209,7 @@ class QuantizationAwareTrainer:
             imgsz=640,
             device=self.device,
             validator=QuantDetectionValidator(),
-            split="test",
+            split="val",
         )
         if save_metrics and results:
             csv_metrics = results.to_csv()
@@ -265,6 +270,8 @@ class QuantizationAwareTrainingPipeline:
         # init components
         self.quantization_setup: Optional[QuantizationSetup] = None
         self.trainer: Optional[QuantizationAwareTrainer] = None
+
+        self.dataset_config: DataConfig = self._load_data_config()
 
     def run(self) -> None:
         logger.info("Starting QAT pipeline")
@@ -327,12 +334,25 @@ class QuantizationAwareTrainingPipeline:
             num_bits=self.config.quantization_args.num_bits,
         )
 
+    def _load_data_config(self) -> DataConfig:
+        """Loads and validates YAML config file for a YOLO dataset."""
+        with open(self.config.dataset_yaml_file_path, "r") as f:
+            raw_config = yaml.safe_load(f)
+        try:
+            return DataConfig(**raw_config)
+        except ValidationError as e:
+            logger.error("❌ Data config validation error:\n%s", e)
+            raise SystemExit(1)
+        except ValueError as e:
+            logger.error("Invalid argument for data configuration: \n%s", e)
+            raise SystemExit(1)
+
     def _run_training_loop(self) -> None:
         training_dataset = TrainDataset(
-            path=Path(self.config.train_dataset_path),
+            path=Path(self.dataset_config.path),
             img_size=(self.input_shape[2], self.input_shape[3]),
+            split=self.dataset_config.train,
         )
-        # TODO: load subset from autosplit_train.txt or from split ratio
         training_dataloader = DataLoader(
             dataset=training_dataset,
             batch_size=1,  # only batch_size=1 is supported
