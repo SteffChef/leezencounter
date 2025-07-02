@@ -3,7 +3,6 @@ project_name: qat_bike_detection
 output_dir: runs/
 model: models/yolo11n.pt
 
-train_dataset_path: ./datasets/combined/YOLO
 calib_dataset_path: ./datasets/combined/YOLO
 dataset_yaml_file_path: ./datasets/combined/YOLO/combined_yolo_dataset.yaml
 input_shape:
@@ -15,12 +14,13 @@ onnx_model_path: ./models/onnx/yolo11n.onnx
 training_args:
   epochs: 1
   device: 'cpu'
-  scheduler_params:
+  scheduling: linear
+  # scheduler_params:
     # good starting point
     # start_factor: 0.01
 
 quantization_args:
-  calib_steps: 32
+  calib_steps: 12
   num_bits: 8
 
 num_workers: 4

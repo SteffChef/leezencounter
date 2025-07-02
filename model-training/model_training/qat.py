@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal, Optional, Sequence
@@ -18,8 +19,9 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from ultralytics import YOLO
 from ultralytics.utils.metrics import DetMetrics
+import wandb
 
-from model_training.core.constants import TXT_ENCODING
+from model_training.core.constants import TXT_ENCODING, WANDB_PROJECT
 from model_training.core.schemas import (
     DataConfig,
     QuantizationAwareTrainingArgs,
@@ -27,7 +29,7 @@ from model_training.core.schemas import (
 )
 from model_training.utils.datasets import CalibrationDataset, TrainDataset
 from model_training.utils.quantization import QuantizationSetup
-from model_training.utils.validators import QuantDetectionValidator
+from model_training.utils.validators import QuantDetectionValidator, QuantizedModelValidator
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -37,13 +39,13 @@ class QuantizationAwareTrainer:
     """Trainer class for quantization-aware training of YOLO models"""
 
     def __init__(
-        self,
-        ppq_graph: BaseGraph,
-        yolo_model: str | Path,
-        onnx_model_path: Path,
-        dataset_yaml_path: Path,
-        training_arguments: QuantizationAwareTrainingArgs,
-        num_bits: Literal[8, 16],
+            self,
+            ppq_graph: BaseGraph,
+            yolo_model: str | Path,
+            onnx_model_path: Path,
+            dataset_yaml_path: Path,
+            training_arguments: QuantizationAwareTrainingArgs,
+            num_bits: Literal[8, 16],
     ) -> None:
         """
         Initialize QAT pipeline
@@ -64,6 +66,10 @@ class QuantizationAwareTrainer:
         self.device = training_arguments.device
         self.scheduling = training_arguments.scheduling
         self.scheduler_params = training_arguments.scheduler_params
+
+        # PPQ graphs and native model files
+        self._latest_native_model = None
+        self._latest_espdl_model = None
 
         # training state
         self._curr_epoch = 0
@@ -102,6 +108,14 @@ class QuantizationAwareTrainer:
         """Get best metric achieved so far."""
         return self._best_metrics
 
+    @property
+    def latest_native_model(self) -> Optional[Path]:
+        return self._latest_native_model
+
+    @property
+    def latest_espdl_model(self) -> Optional[Path]:
+        return self._latest_espdl_model
+
     def _get_optimizer(self) -> torch.optim.Optimizer:
         optimizer = torch.optim.SGD(
             params=[{"params": self._training_graph.parameters()}],
@@ -109,7 +123,7 @@ class QuantizationAwareTrainer:
         )
         if self.scheduling:
             if not self.scheduler_params:
-                logger.info("No scheduling parameters provided, using default scheduling.")
+                logger.info("No learning rate scheduling parameters provided, using default scheduling.")
             match self.scheduling:
                 case "linear":
                     self._lr_scheduler = torch.optim.lr_scheduler.LinearLR(optimizer=optimizer, **self.scheduler_params)
@@ -132,8 +146,6 @@ class QuantizationAwareTrainer:
         progress_bar = tqdm(
             train_dataloader, desc=f"Epoch {self._curr_epoch}", total=num_batches if num_batches > 0 else None
         )
-
-        # TODO: log results to W&B - precision, recall, f1, mAP50, mAP50-95
 
         for batch_idx, batch in enumerate(progress_bar):
             data = batch.to(self.device)
@@ -174,7 +186,7 @@ class QuantizationAwareTrainer:
 
         # Update learning rate if scheduler is available
         if self._lr_scheduler:
-            self._lr_scheduler.step(epoch=self._curr_epoch)
+            self._lr_scheduler.step()
 
         self._curr_step += 1
         return quantized_predictions, total_loss.item()  # type: ignore
@@ -208,8 +220,14 @@ class QuantizationAwareTrainer:
             # TODO: get from training arguments
             imgsz=640,
             device=self.device,
-            validator=QuantDetectionValidator(),
+            # TODO: fix QuantDetectionValidator()
+            validator=QuantDetectionValidator(args={
+                'onnx_model_path': self.onnx_model_path,
+                'native_model_path': self.latest_native_model,
+                'num_bits': self.num_bits
+            }),
             split="val",
+            verbose=True
         )
         if save_metrics and results:
             csv_metrics = results.to_csv()
@@ -231,11 +249,13 @@ class QuantizationAwareTrainer:
             case 16:
                 espdl_exporter = PFL.Exporter(platform=TargetPlatform.ESPDL_INT16)
             case _:
-                raise IOError(f"Invalid number of bits {self.num_bits}. Only 8 or 16 are supported.")
+                raise IOError(f"Invalid number of bits: {self.num_bits}. Only 8 or 16 are supported for quantization.")
         espdl_exporter.export(espdl_path.as_posix(), self.ppq_graph)
+        self._latest_espdl_model = espdl_path
 
         native_exporter = NativeExporter()
         native_exporter.export(native_path.as_posix(), self.ppq_graph)
+        self._latest_native_model = native_path
 
     def update_metrics(self, scores: DetMetrics) -> bool:
         """
@@ -259,6 +279,7 @@ class QuantizationAwareTrainingPipeline:
         self.config = config
 
         self.model_path = Path(self.config.model)
+        self.model_name = self.model_path.stem
         self.device = config.training_args.device
         self.input_shape = config.input_shape
         # convert to list if not already
@@ -271,7 +292,10 @@ class QuantizationAwareTrainingPipeline:
         self.quantization_setup: Optional[QuantizationSetup] = None
         self.trainer: Optional[QuantizationAwareTrainer] = None
 
+        # init model run meta data
         self.dataset_config: DataConfig = self._load_data_config()
+        self.run_name = self._generate_run_name()
+        self.wandb_run = self._init_wandb()
 
     def run(self) -> None:
         logger.info("Starting QAT pipeline")
@@ -360,20 +384,19 @@ class QuantizationAwareTrainingPipeline:
             num_workers=self.config.num_workers,
         )
 
-        run_name = self._generate_run_name()
-        output_dir = self._create_output_dir(run_name)
+        output_dir = self._create_output_dir(self.run_name)
 
         logger.info(f"Start training for {self.config.training_args.epochs} epochs")
         for epoch in range(self.config.training_args.epochs):
             epoch_loss = self.trainer.train_epoch(training_dataloader)
 
-            model_name = f"qat_yolo11n_epoch_{epoch}"
-            espdl_path = output_dir / "espdl" / f"{model_name}.espdl"
-            native_path = output_dir / "native" / f"{model_name}.native"
+            epoch_model_name = f"qat_{self.model_name}_epoch_{epoch}"
+            espdl_path = output_dir / "espdl" / f"{epoch_model_name}.espdl"
+            native_path = output_dir / "native" / f"{epoch_model_name}.native"
 
             self.trainer.save_model(espdl_path, native_path)
 
-            metrics_path = output_dir / "metrics" / f"{model_name}_metrics.csv"
+            metrics_path = output_dir / "metrics" / f"{epoch_model_name}_metrics.csv"
             metrics = self.trainer.evaluate(self.config.save_metrics, metrics_path)
 
             if self.trainer.update_metrics(metrics):
@@ -381,6 +404,19 @@ class QuantizationAwareTrainingPipeline:
                 best_native_model = output_dir / "native" / "best.native"
                 self.trainer.save_model(best_espdl_model, best_native_model)
 
+                self._wandb_log_best_model(
+                    epoch=epoch,
+                    best_espdl_model_path=best_espdl_model,
+                    best_native_model_path=best_native_model
+                )
+
+            self._wandb_log_epoch(
+                epoch=epoch,
+                train_loss=epoch_loss,
+                val_metrics=metrics,
+                espdl_model_path=espdl_path,
+                native_model_path=native_path
+            )
             logger.info(f"Epoch: {epoch + 1}: Loss: {epoch_loss:.4f}")
 
     def _generate_run_name(self) -> str:
@@ -393,3 +429,79 @@ class QuantizationAwareTrainingPipeline:
         for sub_dir in ["espdl", "native", "metrics"]:
             (output_dir / sub_dir).mkdir(parents=True, exist_ok=True)
         return output_dir
+
+    @staticmethod
+    def _wandb_login() -> None:
+        wandb.login(anonymous='allow', key=os.environ['WANDB_API_KEY'], timeout=60)
+
+    def _init_wandb(self) -> wandb.sdk.wandb_run.Run:
+        return wandb.init(
+            project=WANDB_PROJECT,
+            name=self.run_name,
+            tags=["QAT"],
+            config=self.config.model_dump(),
+            anonymous='allow',
+            force=True
+        )
+
+    def _wandb_log_epoch(
+            self,
+            epoch: int,
+            train_loss: float,
+            val_metrics: DetMetrics,
+            espdl_model_path: Path,
+            native_model_path: Path,
+    ) -> None:
+        """
+        Logs epoch data to Weights & Biases
+        :param epoch: current epoch
+        :param train_loss: current training loss
+        :param val_metrics: validation metrics
+        :param espdl_model_path: path to .espdl model file of the current epoch
+        :param native_model_path: path to .native model file of the current epoch
+        """
+        wandb.log(
+            data={
+                "train_loss": train_loss,
+                "val_metrics": {
+                    'curves': {
+                        curve: curve_results
+                        for curve, curve_results in zip(val_metrics.curves, val_metrics.curves_results)
+                    },
+                    **val_metrics.results_dict
+                } if val_metrics else {}
+            },
+            commit=True
+        )
+        # log .espdl model
+        artifact = wandb.Artifact(
+            espdl_model_path.stem, type="model", metadata=self.config.model_dump()
+        )
+        artifact.add_file(espdl_model_path.as_posix())
+        # log .native model
+        artifact.add_file(native_model_path.as_posix())
+        self.wandb_run.log_artifact(artifact, aliases=[f'epoch_{epoch}'])
+
+    def _wandb_log_best_model(
+            self,
+            epoch: int,
+            best_espdl_model_path: Path,
+            best_native_model_path: Path
+    ) -> None:
+        """
+        Logs/overwrites the best-performing model of the current model run to Weights & Biases
+        :param epoch: current epoch
+        :param best_espdl_model_path: path to best .espdl model file
+        :param best_native_model_path: path to best .native model file
+        """
+        # log .espdl model
+        artifact = wandb.Artifact(
+            best_espdl_model_path.stem, type="model", metadata=self.config.model_dump(),
+        )
+        artifact.add_file(best_espdl_model_path.as_posix())
+        artifact.add_file(best_native_model_path.as_posix())
+        self.wandb_run.log_artifact(best_espdl_model_path, aliases=['best', f'epoch_{epoch}'])
+
+    def finish_wandb(self) -> None:
+        wandb.finish()
+        logger.info(f"Training completed, view results under: {self.wandb_run.url}")

@@ -8,7 +8,7 @@ from torchvision import transforms
 
 class CalibrationDataset(Dataset):
     def __init__(self, path: Path, img_size: int | tuple[int, int] = 640):
-        super().__init__(img_size)
+        super().__init__()
 
         self.transform = transforms.Compose(
             [
@@ -18,11 +18,11 @@ class CalibrationDataset(Dataset):
             ]
         )
 
-        images_dir = path / "images"
-        if not (images_dir.exists() and images_dir.is_dir()):
-            raise NotADirectoryError(f"{images_dir} does not exist or is not a directory")
+        self.images_dir = path / "images"
+        if not (self.images_dir.exists() and self.images_dir.is_dir()):
+            raise NotADirectoryError(f"{self.images_dir} does not exist or is not a directory")
         # use all images for calibration
-        self.img_paths = list(images_dir.glob("*.jpg"))
+        self.img_paths = list(self.images_dir.glob("*.jpg"))
 
     def __len__(self) -> int:
         return len(self.img_paths)
@@ -49,13 +49,13 @@ class TrainDataset(CalibrationDataset):
         elif isinstance(split, str):
             txt_file_path = path / split
 
-            if not (txt_file_path.exists() and txt_file_path.is_file() and txt_file_path.with_suffix(".txt")):
+            if not (txt_file_path.exists() and txt_file_path.is_file() and txt_file_path.suffix == '.txt'):
                 raise NotADirectoryError(f"{txt_file_path.as_posix()} does not exist or is not a .txt file")
 
             with txt_file_path.open("r") as txt_file:
-                selected_train_images = set(txt_file.readlines())
+                selected_train_images = list(map(lambda line: Path(line.strip()), txt_file.readlines()))
 
-            self.img_paths = [img_path for img_path in self.img_paths if img_path in selected_train_images]
+            self.img_paths = list(map(lambda path: self.images_dir / path.name, selected_train_images))
         else:
             raise ValueError("Split must be either a ratio (float) or path-like object (str)")
 

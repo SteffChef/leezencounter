@@ -64,7 +64,7 @@ class QuantizationAwareTrainingArgs(BaseModel):
 
 
 class BaseConfig(BaseModel):
-    project_name: str = Field(..., description="Name of the W&B project")
+    project_name: str = Field(..., description="Name of the model run")
     output_dir: str | PathLike = Field(..., description="Directory to save model runs")
     model: str | PathLike = Field(..., description="YOLO model name or path to weights")
 
@@ -107,7 +107,6 @@ class DataConfig(BaseModel):
 
 
 class QuantizationAwareTrainingConfig(BaseConfig):
-    train_dataset_path: str = Field(..., description="Path to training dataset directory.")
     calib_dataset_path: str = Field(..., description="Path to calibration dataset directory.")
     dataset_yaml_file_path: str = Field(..., description="Path to calibration dataset YAML file. Used by Ultralytics.")
     onnx_model_path: str = Field(..., description="Path to ONNX model file")

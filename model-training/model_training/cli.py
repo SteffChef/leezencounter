@@ -16,7 +16,7 @@ def cli():
 @click.argument("config", type=click.Path(exists=True), required=True)
 def train(config):
     """
-    Run training job via the CLI from a YAML CONFIG file.
+    Run training job via the CLI from a YAML config file.
     """
     trainer = Trainer(config)
     try:
@@ -29,9 +29,12 @@ def train(config):
 @cli.command()
 @click.argument("config", type=click.Path(exists=True), required=True)
 def qat(config: Path):
+    """
+    Run QAT job via CLI from a YAML config file
+    """
+    train_config = QuantizationAwareTrainingConfig.from_yaml(config)
+    pipeline = QuantizationAwareTrainingPipeline(train_config)
     try:
-        train_config = QuantizationAwareTrainingConfig.from_yaml(config)
-        pipeline = QuantizationAwareTrainingPipeline(train_config)
         pipeline.run()
-    except Exception as e:
-        raise e
+    finally:
+        pipeline.finish_wandb()

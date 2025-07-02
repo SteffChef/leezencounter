@@ -156,8 +156,6 @@ def quantize_yolo(
     onnx_model_path: Path,
     espdl_model_path: Path,
     calib_dataset_path: Path,
-    input_shape: Optional[list[int]] = None,
-    batch_size: int = 32,
     num_of_bits: Literal[8, 16] = 8,
     calib_steps: int = 32,
     sim: bool = True,
@@ -176,17 +174,15 @@ def quantize_yolo(
     :param device: Device used for quantization. Only cpu and cuda are supported.
     :return: quantized graph from ESP-PPQ framework.
     """
-    if input_shape is None:
-        input_shape = [3, 640, 640]
     if num_of_bits not in (8, 16):
         raise ValueError(f"int8 and int16 are supported but received {num_of_bits} bit for quantization.")
     # validate onnx_model_path
     if not onnx_model_path.exists():
         raise FileNotFoundError(f"No such path: {onnx_model_path.as_posix()}")
-    if not onnx_model_path.with_suffix(".onnx"):
+    if not onnx_model_path.suffix == '.onnx':
         raise IOError(f"Invalid file format for onnx_model_path: {onnx_model_path.suffix}. Expected .onnx")
     # validate espdl_model_path
-    if not espdl_model_path.with_suffix(".espdl"):
+    if not espdl_model_path.suffix == '.espdl':
         raise IOError(f"Invalid file format for espdl_model_path: {espdl_model_path.suffix}. Expected .espdl")
     # validate calibration dataset path
     if not (calib_dataset_path.is_dir() and calib_dataset_path.exists()):
@@ -200,7 +196,7 @@ def quantize_yolo(
     onnx.save(onnx.shape_inference.infer_shapes(model), onnx_model_path.as_posix())
 
     calibration_dataset = CalibrationDataset(calib_dataset_path)
-    dataloader = DataLoader(dataset=calibration_dataset, batch_size=batch_size, shuffle=False)
+    dataloader = DataLoader(dataset=calibration_dataset, batch_size=1, shuffle=False)
 
     def collate_fn(batch: torch.Tensor) -> torch.Tensor:
         return batch.to(device)
