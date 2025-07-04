@@ -1,10 +1,19 @@
 export async function getParticipants() {
   try {
-    const response = await fetch("http://localhost:4000/api/participants", {
+    // Use absolute URL with the appropriate base URL
+    const baseUrl =
+      process.env.NEXT_PUBLIC_APP_URL ||
+      (typeof window !== "undefined"
+        ? window.location.origin
+        : "http://localhost:3000");
+
+    const response = await fetch(`${baseUrl}/api/participants`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
       },
+      // Make sure it's treated as a server-side request in Next.js
+      cache: "no-store",
     });
 
     if (!response.ok) {
