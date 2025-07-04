@@ -65,8 +65,11 @@ export async function GET() {
         const parsedObj = JSON.parse(lines[i]);
         jsonObjects.push(parsedObj);
       } catch (e) {
+        const error = e instanceof Error ? e : new Error(String(e));
         console.error(
-          `Failed to parse line ${i}: ${lines[i].substring(0, 50)}...`
+          `Failed to parse line ${i}: ${lines[i].substring(0, 50)}... Error: ${
+            error.message
+          }`
         );
       }
     }
