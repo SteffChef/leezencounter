@@ -7,6 +7,7 @@
 #include "dl_image.hpp"
 #include "dl_detect_base.hpp"
 #include <list>
+#include "esp_camera.h" 
 
 #ifdef __cplusplus
 extern "C" {
@@ -14,11 +15,10 @@ extern "C" {
 
 esp_err_t init_sd_card();
 bool is_sd_card_mounted();
-esp_err_t save_image_as_bmp(const dl::image::img_t &img, const char *filename);
+esp_err_t save_jpeg(const camera_fb_t *fb, const char *filename);
 esp_err_t save_detection_results(const std::list<dl::detect::result_t> &results, float confidence_threshold, const char *filename);
 int get_image_counter();
 int increment_image_counter();
-void deinit_sd_card();
 
 #ifdef __cplusplus
 }

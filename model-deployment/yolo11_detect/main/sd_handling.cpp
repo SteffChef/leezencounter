@@ -84,81 +84,6 @@ bool is_sd_card_mounted() {
     return sd_mounted;
 }
 
-esp_err_t save_image_as_bmp(const dl::image::img_t &img, const char *filename) {
-    if (!sd_mounted) {
-        ESP_LOGE(TAG, "SD card not mounted");
-        return ESP_FAIL;
-    }
-
-    char filepath[128];
-    snprintf(filepath, sizeof(filepath), MOUNT_POINT "/%s", filename);
-
-    FILE *file = fopen(filepath, "wb");
-    if (!file) {
-        ESP_LOGE(TAG, "Failed to open file for writing: %s", filepath);
-        return ESP_FAIL;
-    }
-
-    int width = img.width;
-    int height = img.height;
-    int row_size = (width * 3 + 3) & ~3;
-    int image_size = row_size * height;
-    int file_size = 54 + image_size;
-
-    uint8_t file_header[14] = {
-        'B', 'M',
-        (uint8_t)(file_size & 0xFF), (uint8_t)((file_size >> 8) & 0xFF),
-        (uint8_t)((file_size >> 16) & 0xFF), (uint8_t)((file_size >> 24) & 0xFF),
-        0, 0, 0, 0,
-        54, 0, 0, 0
-    };
-
-    uint8_t info_header[40] = {
-        40, 0, 0, 0,
-        (uint8_t)(width & 0xFF), (uint8_t)((width >> 8) & 0xFF),
-        (uint8_t)((width >> 16) & 0xFF), (uint8_t)((width >> 24) & 0xFF),
-        (uint8_t)(height & 0xFF), (uint8_t)((height >> 8) & 0xFF),
-        (uint8_t)((height >> 16) & 0xFF), (uint8_t)((height >> 24) & 0xFF),
-        1, 0,
-        24, 0,
-        0, 0, 0, 0,
-        (uint8_t)(image_size & 0xFF), (uint8_t)((image_size >> 8) & 0xFF),
-        (uint8_t)((image_size >> 16) & 0xFF), (uint8_t)((image_size >> 24) & 0xFF),
-        0, 0, 0, 0,
-        0, 0, 0, 0,
-        0, 0, 0, 0,
-        0, 0, 0, 0
-    };
-
-    fwrite(file_header, 1, 14, file);
-    fwrite(info_header, 1, 40, file);
-
-    uint8_t *row_buffer = (uint8_t *)malloc(row_size);
-    if (!row_buffer) {
-        fclose(file);
-        ESP_LOGE(TAG, "Failed to allocate row buffer");
-        return ESP_FAIL;
-    }
-
-    uint8_t* pixel_data = static_cast<uint8_t*>(img.data);
-    for (int y = height - 1; y >= 0; y--) {
-        memset(row_buffer, 0, row_size);
-        for (int x = 0; x < width; x++) {
-            int src_idx = (y * width + x) * 3;
-            int dst_idx = x * 3;
-            row_buffer[dst_idx]     = pixel_data[src_idx + 2];
-            row_buffer[dst_idx + 1] = pixel_data[src_idx + 1];
-            row_buffer[dst_idx + 2] = pixel_data[src_idx];
-        }
-        fwrite(row_buffer, 1, row_size, file);
-    }
-
-    free(row_buffer);
-    fclose(file);
-    ESP_LOGI(TAG, "BMP image saved: %s", filepath);
-    return ESP_OK;
-}
-
 esp_err_t save_detection_results(const std::__cxx11::list<dl::detect::result_t> &results,
                                  float confidence_threshold, const char *filename) {
     if (!sd_mounted) {
@@ -205,11 +130,36 @@ int increment_image_counter() {
     return ++image_counter;
 }
 
-// void deinit_sd_card() {
-//     if (sd_mounted) {
-//         esp_vfs_fat_sdcard_unmount(MOUNT_POINT, card);
-//         spi_bus_free(SDSPI_HOST_DEFAULT());
-//         sd_mounted = false;
-//         ESP_LOGI(TAG, "SD card unmounted");
-//     }
-// }
+esp_err_t save_jpeg(const camera_fb_t *fb, const char *filename) {
+    if (!sd_mounted) {
+        ESP_LOGE(TAG, "SD card not mounted");
+        return ESP_FAIL;
+    }
+
+    if (!fb || !fb->buf || fb->len == 0) {
+        ESP_LOGE(TAG, "Invalid frame buffer provided for saving");
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    char filepath[128];
+    snprintf(filepath, sizeof(filepath), MOUNT_POINT "/%s", filename);
+
+    FILE *file = fopen(filepath, "wb"); // "wb" for write binary
+    if (!file) {
+        ESP_LOGE(TAG, "Failed to open file for writing: %s", filepath);
+        return ESP_FAIL;
+    }
+
+    // Write the entire JPEG buffer (fb->buf) of length (fb->len) to the file
+    size_t written = fwrite(fb->buf, 1, fb->len, file);
+    fclose(file);
+
+    if (written != fb->len) {
+        ESP_LOGE(TAG, "Failed to write complete file. Wrote %d of %d bytes.", written, fb->len);
+        return ESP_FAIL;
+    }
+
+    ESP_LOGI(TAG, "JPEG image saved: %s (%d bytes)", filepath, fb->len);
+    return ESP_OK;
+}
+
