@@ -37,7 +37,7 @@ export default function RootLayout({
               <SidebarTrigger className="cursor-pointer" />
               <BreadcrumbUI />
             </div>
-            <section className="p-2 flex-1 flex-col">{children}</section>
+            <section className="p-4 flex-1 flex-col">{children}</section>
             <footer className="mt-auto border-t justify-center flex text-gray-500">
               Leezencounter @ Uni Münster
             </footer>

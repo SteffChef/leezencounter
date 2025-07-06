@@ -10,7 +10,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { Home, LayoutDashboard, MapIcon, Settings } from "lucide-react";
+import { Home, LayoutDashboard, MapIcon, Settings, Bike } from "lucide-react";
 
 const items = [
   {
@@ -22,6 +22,11 @@ const items = [
     title: "Dasboard",
     url: "/dashboard",
     icon: LayoutDashboard,
+  },
+  {
+    title: "Leezenboxes",
+    url: "/leezenboxes",
+    icon: Bike,
   },
   {
     title: "Map",

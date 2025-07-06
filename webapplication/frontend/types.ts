@@ -13,4 +13,21 @@ export interface Leezenbox {
   latitude: number;
   longitude: number;
   num_lockers_with_power: number;
+  capacity: number;
+}
+
+export interface Prediction {
+  id: number;
+  datapoint_id: number;
+  position_x: number;
+  position_y: number;
+  label: string;
+  confidence: number;
+}
+
+export interface DataPoint {
+  id: number;
+  leezenbox_id: number;
+  timestamp: string; // ISO date string
+  predictions: Prediction[];
 }
