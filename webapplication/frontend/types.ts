@@ -17,11 +17,8 @@ export interface Leezenbox {
 }
 
 export interface Prediction {
-  id: number;
-  datapoint_id: number;
-  position_x: number;
-  position_y: number;
-  label: string;
+  category: number;
+  bbox: number[];
   confidence: number;
 }
 

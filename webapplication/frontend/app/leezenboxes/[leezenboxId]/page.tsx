@@ -38,9 +38,9 @@ const LeezenboxByIdPage = async ({ params }: LeezenboxByIdPageProps) => {
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
         <Card className="@container/card">
           <CardHeader>
-            <CardDescription>Total Revenue</CardDescription>
+            <CardDescription>Averagy Occupancy</CardDescription>
             <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-              $1,250.00
+              29.9 / 40
             </CardTitle>
             <CardAction>
               <Badge variant="outline">
