@@ -397,26 +397,26 @@ class QuantizationAwareTrainingPipeline:
             self.trainer.save_model(espdl_path, native_path)
 
             metrics_path = output_dir / "metrics" / f"{epoch_model_name}_metrics.csv"
-            metrics = self.trainer.evaluate(self.config.save_metrics, metrics_path)
+            # metrics = self.trainer.evaluate(self.config.save_metrics, metrics_path)
 
-            if self.trainer.update_metrics(metrics):
-                best_espdl_model = output_dir / "espdl" / "best.espdl"
-                best_native_model = output_dir / "native" / "best.native"
-                self.trainer.save_model(best_espdl_model, best_native_model)
-
-                self._wandb_log_best_model(
-                    epoch=epoch,
-                    best_espdl_model_path=best_espdl_model,
-                    best_native_model_path=best_native_model
-                )
-
-            self._wandb_log_epoch(
-                epoch=epoch,
-                train_loss=epoch_loss,
-                val_metrics=metrics,
-                espdl_model_path=espdl_path,
-                native_model_path=native_path
-            )
+            # if self.trainer.update_metrics(metrics):
+            #     best_espdl_model = output_dir / "espdl" / "best.espdl"
+            #     best_native_model = output_dir / "native" / "best.native"
+            #     self.trainer.save_model(best_espdl_model, best_native_model)
+            #
+            #     self._wandb_log_best_model(
+            #         epoch=epoch,
+            #         best_espdl_model_path=best_espdl_model,
+            #         best_native_model_path=best_native_model
+            #     )
+            #
+            # self._wandb_log_epoch(
+            #     epoch=epoch,
+            #     train_loss=epoch_loss,
+            #     val_metrics=metrics,
+            #     espdl_model_path=espdl_path,
+            #     native_model_path=native_path
+            # )
             logger.info(f"Epoch: {epoch + 1}: Loss: {epoch_loss:.4f}")
 
     def _generate_run_name(self) -> str:
