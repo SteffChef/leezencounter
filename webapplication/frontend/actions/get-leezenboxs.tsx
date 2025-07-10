@@ -1,4 +1,6 @@
-export async function getLeezenboxs() {
+import { Leezenbox } from "@/types";
+
+export async function getLeezenboxs(): Promise<Leezenbox[]> {
   try {
     // Use absolute URL with the appropriate base URL
     const baseUrl =

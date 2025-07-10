@@ -1,5 +1,5 @@
 import { getParticipants } from "@/actions/get-participants";
-import ParticipantCard from "@/app/tutorial-session/components/participant-card";
+import ParticipantCard from "@/app/(frontend)/tutorial-session/components/participant-card";
 import { Participant } from "@/types";
 
 const ParticipantsPage = async () => {

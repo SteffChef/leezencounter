@@ -15,6 +15,8 @@ import {
 import { useState } from "react";
 import { Button } from "./ui/button";
 import { LinearChart } from "./linear-chart";
+import Link from "next/link";
+import { Search } from "lucide-react";
 
 // Fix Leaflet's default icon issues in Next.js
 L.Icon.Default.mergeOptions({
@@ -55,7 +57,7 @@ export default function LeezenboxMap({ data }: Props) {
               <br />
               <div className="flex justify-end w-full mt-2">
                 <Button
-                  className="cursor-pointer bg-cyan-200 h-8"
+                  className="cursor-pointer h-8"
                   onClick={() => setSelectedBox(box)}
                 >
                   Details
@@ -66,7 +68,7 @@ export default function LeezenboxMap({ data }: Props) {
         ))}
       </MapContainer>
       <Sheet open={!!selectedBox} onOpenChange={() => setSelectedBox(null)}>
-        <SheetContent className="bg-white sm:max-w-[50vw] max-w-[80vw] md:max-w-[40vw] lg:max-w-[30vw]">
+        <SheetContent className="bg-white sm:max-w-[50vw] max-w-[80vw] md:max-w-[40vw] lg:max-w-[30vw] p-4">
           <SheetHeader>
             <SheetTitle>{selectedBox?.name}</SheetTitle>
             <SheetDescription>
@@ -79,6 +81,13 @@ export default function LeezenboxMap({ data }: Props) {
           <div className="px-4">
             <LinearChart />
           </div>
+          <Link
+            href={`/leezenboxes/${selectedBox?.id}`}
+            className="flex items-center p-4 bg-accent rounded-lg shadow-md hover:shadow-lg transition ml-auto mt-auto"
+          >
+            <Search className="mr-2" />
+            <span>More details</span>
+          </Link>
         </SheetContent>
       </Sheet>
     </>

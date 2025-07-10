@@ -9,7 +9,7 @@ interface LeezenboxCardProps {
 }
 
 const LeezenboxCard: React.FC<LeezenboxCardProps> = ({ leezenbox }) => {
-  const occupancy = 50; // Example occupancy value
+  const occupancy = 29; // Example occupancy value
   const progressValue =
     (occupancy / leezenbox.capacity) * 100 < 100
       ? (occupancy / leezenbox.capacity) * 100
@@ -17,7 +17,7 @@ const LeezenboxCard: React.FC<LeezenboxCardProps> = ({ leezenbox }) => {
 
   return (
     <Link href={`/leezenboxes/${leezenbox.id}`}>
-      <Card className="@container/card">
+      <Card className="@container/card hover:shadow-lg transition-shadow">
         <CardHeader>
           <h2 className="text-lg font-semibold">{leezenbox.name}</h2>
         </CardHeader>
