@@ -15,9 +15,8 @@ training_args:
   epochs: 1
   device: 'cpu'
   scheduling: linear
-  # scheduler_params:
-    # good starting point
-    # start_factor: 0.01
+  scheduler_params:
+    start_factor: 0.01  # good starting point
 
 quantization_args:
   calib_steps: 12

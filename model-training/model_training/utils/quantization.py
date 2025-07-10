@@ -149,7 +149,7 @@ class QuantizationSetup:
             executor=self.executor,
         )
 
-        logger.info(f"Calibration completed with {len(calibration_dataloader.dataset)} images")
+        logger.info(f"Calibration completed with {len(calibration_dataloader.dataset)} images")  # type: ignore
 
 
 def quantize_yolo(
@@ -179,10 +179,10 @@ def quantize_yolo(
     # validate onnx_model_path
     if not onnx_model_path.exists():
         raise FileNotFoundError(f"No such path: {onnx_model_path.as_posix()}")
-    if not onnx_model_path.suffix == '.onnx':
+    if not onnx_model_path.suffix == ".onnx":
         raise IOError(f"Invalid file format for onnx_model_path: {onnx_model_path.suffix}. Expected .onnx")
     # validate espdl_model_path
-    if not espdl_model_path.suffix == '.espdl':
+    if not espdl_model_path.suffix == ".espdl":
         raise IOError(f"Invalid file format for espdl_model_path: {espdl_model_path.suffix}. Expected .espdl")
     # validate calibration dataset path
     if not (calib_dataset_path.is_dir() and calib_dataset_path.exists()):

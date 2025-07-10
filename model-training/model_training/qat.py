@@ -5,6 +5,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal, Optional, Sequence
 
+# isort: off
 import onnxruntime as ort
 import ppq.lib as PFL
 import torch
@@ -20,6 +21,7 @@ from tqdm import tqdm
 from ultralytics import YOLO
 from ultralytics.utils.metrics import DetMetrics
 import wandb
+# isort: on
 
 from model_training.core.constants import TXT_ENCODING, WANDB_PROJECT
 from model_training.core.schemas import (
@@ -29,7 +31,7 @@ from model_training.core.schemas import (
 )
 from model_training.utils.datasets import CalibrationDataset, TrainDataset
 from model_training.utils.quantization import QuantizationSetup
-from model_training.utils.validators import QuantDetectionValidator, QuantizedModelValidator
+from model_training.utils.validators import QuantDetectionValidator
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -39,13 +41,13 @@ class QuantizationAwareTrainer:
     """Trainer class for quantization-aware training of YOLO models"""
 
     def __init__(
-            self,
-            ppq_graph: BaseGraph,
-            yolo_model: str | Path,
-            onnx_model_path: Path,
-            dataset_yaml_path: Path,
-            training_arguments: QuantizationAwareTrainingArgs,
-            num_bits: Literal[8, 16],
+        self,
+        ppq_graph: BaseGraph,
+        yolo_model: str | Path,
+        onnx_model_path: Path,
+        dataset_yaml_path: Path,
+        training_arguments: QuantizationAwareTrainingArgs,
+        num_bits: Literal[8, 16],
     ) -> None:
         """
         Initialize QAT pipeline
@@ -68,8 +70,8 @@ class QuantizationAwareTrainer:
         self.scheduler_params = training_arguments.scheduler_params
 
         # PPQ graphs and native model files
-        self._latest_native_model = None
-        self._latest_espdl_model = None
+        self._latest_native_model: Optional[Path] = None
+        self._latest_espdl_model: Optional[Path] = None
 
         # training state
         self._curr_epoch = 0
@@ -82,7 +84,7 @@ class QuantizationAwareTrainer:
         self._executor = TorchExecutor(graph=self.ppq_graph, device=self.device)
         self._training_graph = TrainableGraph(self.ppq_graph)
         self._loss_fn = torch.nn.MSELoss()
-        self._lr_scheduler = None
+        self._lr_scheduler: Optional[torch.optim.lr_scheduler.LinearLR] = None
 
         # set up optimizer and gradients for trainable parameters
         self._optimizer = self._get_optimizer()
@@ -221,15 +223,17 @@ class QuantizationAwareTrainer:
             imgsz=640,
             device=self.device,
             # TODO: fix QuantDetectionValidator()
-            validator=QuantDetectionValidator(args={
-                'onnx_model_path': self.onnx_model_path,
-                'native_model_path': self.latest_native_model,
-                'num_bits': self.num_bits
-            }),
+            validator=QuantDetectionValidator(
+                args={
+                    "onnx_model_path": self.onnx_model_path,
+                    "native_model_path": self.latest_native_model,
+                    "num_bits": self.num_bits,
+                }
+            ),
             split="val",
-            verbose=True
+            verbose=True,
         )
-        if save_metrics and results:
+        if save_metrics and results and file_path:
             csv_metrics = results.to_csv()
             with file_path.open("w", encoding=TXT_ENCODING) as f:
                 f.write(csv_metrics)
@@ -350,7 +354,7 @@ class QuantizationAwareTrainingPipeline:
 
     def _initialize_trainer(self) -> None:
         self.trainer = QuantizationAwareTrainer(
-            ppq_graph=self.quantization_setup.graph,
+            ppq_graph=self.quantization_setup.graph,  # type: ignore
             yolo_model=self.model_path,
             onnx_model_path=Path(self.config.onnx_model_path),
             dataset_yaml_path=Path(self.config.dataset_yaml_file_path),
@@ -388,15 +392,16 @@ class QuantizationAwareTrainingPipeline:
 
         logger.info(f"Start training for {self.config.training_args.epochs} epochs")
         for epoch in range(self.config.training_args.epochs):
-            epoch_loss = self.trainer.train_epoch(training_dataloader)
+            epoch_loss = self.trainer.train_epoch(training_dataloader)  # type: ignore
 
             epoch_model_name = f"qat_{self.model_name}_epoch_{epoch}"
             espdl_path = output_dir / "espdl" / f"{epoch_model_name}.espdl"
             native_path = output_dir / "native" / f"{epoch_model_name}.native"
 
-            self.trainer.save_model(espdl_path, native_path)
+            self.trainer.save_model(espdl_path, native_path)  # type: ignore
 
-            metrics_path = output_dir / "metrics" / f"{epoch_model_name}_metrics.csv"
+            # FIXME: model evaluation during training on validation dataset requires custom post-processing
+            # metrics_path = output_dir / "metrics" / f"{epoch_model_name}_metrics.csv"
             # metrics = self.trainer.evaluate(self.config.save_metrics, metrics_path)
 
             # if self.trainer.update_metrics(metrics):
@@ -432,7 +437,7 @@ class QuantizationAwareTrainingPipeline:
 
     @staticmethod
     def _wandb_login() -> None:
-        wandb.login(anonymous='allow', key=os.environ['WANDB_API_KEY'], timeout=60)
+        wandb.login(anonymous="allow", key=os.environ["WANDB_API_KEY"], timeout=60)
 
     def _init_wandb(self) -> wandb.sdk.wandb_run.Run:
         return wandb.init(
@@ -440,17 +445,17 @@ class QuantizationAwareTrainingPipeline:
             name=self.run_name,
             tags=["QAT"],
             config=self.config.model_dump(),
-            anonymous='allow',
-            force=True
+            anonymous="allow",
+            force=True,
         )
 
     def _wandb_log_epoch(
-            self,
-            epoch: int,
-            train_loss: float,
-            val_metrics: DetMetrics,
-            espdl_model_path: Path,
-            native_model_path: Path,
+        self,
+        epoch: int,
+        train_loss: float,
+        val_metrics: DetMetrics,
+        espdl_model_path: Path,
+        native_model_path: Path,
     ) -> None:
         """
         Logs epoch data to Weights & Biases
@@ -464,30 +469,25 @@ class QuantizationAwareTrainingPipeline:
             data={
                 "train_loss": train_loss,
                 "val_metrics": {
-                    'curves': {
+                    "curves": {
                         curve: curve_results
                         for curve, curve_results in zip(val_metrics.curves, val_metrics.curves_results)
                     },
-                    **val_metrics.results_dict
-                } if val_metrics else {}
+                    **val_metrics.results_dict,
+                }
+                if val_metrics
+                else {},
             },
-            commit=True
+            commit=True,
         )
         # log .espdl model
-        artifact = wandb.Artifact(
-            espdl_model_path.stem, type="model", metadata=self.config.model_dump()
-        )
+        artifact = wandb.Artifact(espdl_model_path.stem, type="model", metadata=self.config.model_dump())
         artifact.add_file(espdl_model_path.as_posix())
         # log .native model
         artifact.add_file(native_model_path.as_posix())
-        self.wandb_run.log_artifact(artifact, aliases=[f'epoch_{epoch}'])
+        self.wandb_run.log_artifact(artifact, aliases=[f"epoch_{epoch}"])
 
-    def _wandb_log_best_model(
-            self,
-            epoch: int,
-            best_espdl_model_path: Path,
-            best_native_model_path: Path
-    ) -> None:
+    def _wandb_log_best_model(self, epoch: int, best_espdl_model_path: Path, best_native_model_path: Path) -> None:
         """
         Logs/overwrites the best-performing model of the current model run to Weights & Biases
         :param epoch: current epoch
@@ -496,11 +496,13 @@ class QuantizationAwareTrainingPipeline:
         """
         # log .espdl model
         artifact = wandb.Artifact(
-            best_espdl_model_path.stem, type="model", metadata=self.config.model_dump(),
+            best_espdl_model_path.stem,
+            type="model",
+            metadata=self.config.model_dump(),
         )
         artifact.add_file(best_espdl_model_path.as_posix())
         artifact.add_file(best_native_model_path.as_posix())
-        self.wandb_run.log_artifact(best_espdl_model_path, aliases=['best', f'epoch_{epoch}'])
+        self.wandb_run.log_artifact(best_espdl_model_path, aliases=["best", f"epoch_{epoch}"])
 
     def finish_wandb(self) -> None:
         wandb.finish()

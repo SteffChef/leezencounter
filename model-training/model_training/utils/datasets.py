@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import numpy as np
+import torch
 from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms
@@ -27,12 +28,12 @@ class CalibrationDataset(Dataset):
     def __len__(self) -> int:
         return len(self.img_paths)
 
-    def __getitem__(self, idx: int) -> Image:
+    def __getitem__(self, idx: int) -> torch.Tensor:
         img = Image.open(self.img_paths[idx].as_posix())  # 0~255 hwc #RGB
         if img.mode == "L":
-            img = img.convert("RGB")
+            img = img.convert("RGB")  # type: ignore
         img = self.transform(img)
-        return img
+        return img  # type: ignore
 
 
 class TrainDataset(CalibrationDataset):
@@ -44,12 +45,12 @@ class TrainDataset(CalibrationDataset):
             if not (0 < split < 1):
                 raise ValueError("Split must be between 0 and 1")
             # select images based on split ratio
-            n = int(len(self.img_paths)) * split
-            self.img_paths = np.random.choice(self.img_paths, size=n, replace=False)
+            n = int(len(self.img_paths) * split)
+            self.img_paths = np.random.choice(np.array(self.img_paths), size=n, replace=False)  # type: ignore
         elif isinstance(split, str):
             txt_file_path = path / split
 
-            if not (txt_file_path.exists() and txt_file_path.is_file() and txt_file_path.suffix == '.txt'):
+            if not (txt_file_path.exists() and txt_file_path.is_file() and txt_file_path.suffix == ".txt"):
                 raise NotADirectoryError(f"{txt_file_path.as_posix()} does not exist or is not a .txt file")
 
             with txt_file_path.open("r") as txt_file:

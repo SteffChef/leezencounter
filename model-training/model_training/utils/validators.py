@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 
 import torch
 import torch.nn.functional as F
@@ -24,7 +24,6 @@ from model_training.utils.quantization import quantize_yolo
 
 
 class QuantizedModelValidator(DetectionValidator):
-
     def __init__(self, args=None, _callbacks=None) -> None:
         super().__init__()
 
@@ -33,8 +32,8 @@ class QuantizedModelValidator(DetectionValidator):
 
         # Initialize required attributes
         # self.metrics = {}
-        self.speed = {}
-        self.jdict = []
+        self.speed: dict[Any, Any] = {}
+        self.jdict: list[Any] = []
         self.loss = 0
         self.training = False
 
@@ -77,13 +76,14 @@ class QuantizedModelValidator(DetectionValidator):
     def __call__(self, trainer=None, model=None, *args, **kwargs):
         """Executes validation process, running inference on dataloader and computing performance metrics."""
         # Set default arguments if none provided
-        native_model_path = self.args.get('native_model_path')
-        onnx_model_path = self.args.get('onnx_model_path')
-        num_bits = self.args.get('num_bits')
+        native_model_path = self.args.get("native_model_path")
+        onnx_model_path = self.args.get("onnx_model_path")
+        num_bits = self.args.get("num_bits")
 
-        override_args = kwargs.get('args', {})
+        override_args = kwargs.get("args", {})
         override_args.update(dict(batch=1))
         from ultralytics.cfg import get_cfg
+
         self.args = get_cfg(overrides=override_args)
 
         # self.args.data = kwargs.get('args', {}).get('data', None)
@@ -94,7 +94,7 @@ class QuantizedModelValidator(DetectionValidator):
             self.data = trainer.data
             # force FP16 val during training
             self.args.half = self.device.type != "cpu" and trainer.args.amp
-            model = YOLO(kwargs.get('args', None).get('model', None))
+            model = YOLO(kwargs.get("args", None).get("model", None))
             model = model.half() if self.args.half else model.float()
             self.model = model
             self.loss = torch.zeros_like(trainer.loss_items, device=trainer.device)
@@ -106,10 +106,10 @@ class QuantizedModelValidator(DetectionValidator):
             callbacks.add_integration_callbacks(self)
 
             model = AutoBackend(
-                weights=model or self.args.model or kwargs.get('args', {}).get('model', None),
+                weights=model or self.args.model or kwargs.get("args", {}).get("model", None),
                 device=select_device(self.args.device, self.args.batch),
                 dnn=self.args.dnn,
-                data=self.args.data or kwargs.get('args', {}).get('data', None),
+                data=self.args.data or kwargs.get("args", {}).get("data", None),
                 fp16=self.args.half,
             )
 
@@ -163,13 +163,13 @@ class QuantizedModelValidator(DetectionValidator):
             device="cpu",
             native_path=native_model_path,
             onnx_model_path=onnx_model_path,
-            num_of_bits=num_bits
+            num_of_bits=num_bits,
         )
 
         for batch_i, batch in enumerate(bar):
             self.run_callbacks("on_val_batch_start")
             self.batch_i = batch_i
-            batch['img'] = F.interpolate(batch['img'], size=(640, 640), mode='bilinear', align_corners=False)
+            batch["img"] = F.interpolate(batch["img"], size=(640, 640), mode="bilinear", align_corners=False)
             # Preprocess
             with dt[0]:
                 batch = self.preprocess(batch)
