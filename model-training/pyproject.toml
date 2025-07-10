@@ -22,6 +22,12 @@ model-train = "model_training.cli:train"
 [project.entry-points."poetry.application.plugin"]
 poethepoet = "poethepoet.plugin:PoetryPlugin"
 
+[project.optional-dependencies]
+labeling = [
+    "label-studio>=1.20.0",
+    "label-studio-converter>=0.0.59",
+]
+
 [dependency-groups]
 ci = [
     "mypy>=1.5.1,<2",
