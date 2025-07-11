@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "TinyAIoT Tutorial",
-  description: "Web Development Essentials",
+  title: "Leezencounter",
+  description: "TinyAIoT powered Leezenbox Monitoring",
 };
 
 export default function RootLayout({

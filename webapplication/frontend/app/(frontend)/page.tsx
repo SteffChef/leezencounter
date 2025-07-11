@@ -5,7 +5,7 @@ import Link from "next/link";
 export default function Home() {
   const buttons = [
     {
-      title: "Dasboard",
+      title: "Dashboard",
       url: "/dashboard",
       icon: LayoutDashboard,
     },

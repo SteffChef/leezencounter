@@ -58,7 +58,7 @@ export async function AppSidebar() {
       icon: Home,
     },
     {
-      title: "Dasboard",
+      title: "Dashboard",
       url: "/dashboard",
       icon: LayoutDashboard,
     },
@@ -72,6 +72,11 @@ export async function AppSidebar() {
       title: "Map",
       url: "/map",
       icon: MapIcon,
+    },
+    {
+      title: "Settings",
+      url: "/settings",
+      icon: Settings,
     },
   ];
 
