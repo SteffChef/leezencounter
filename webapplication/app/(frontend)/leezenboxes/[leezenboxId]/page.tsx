@@ -5,9 +5,9 @@ import { LeezenboxChart } from "@/components/leezenbox-chart";
 import LeezenboxStatCard from "@/components/leezenbox-stat-card";
 
 interface LeezenboxByIdPageProps {
-  params: {
+  params: Promise<{
     leezenboxId: number;
-  };
+  }>;
 }
 
 const LeezenboxByIdPage = async ({ params }: LeezenboxByIdPageProps) => {
@@ -24,7 +24,7 @@ const LeezenboxByIdPage = async ({ params }: LeezenboxByIdPageProps) => {
           className="w-full aspect-[16/3] lg:aspect-[8/1] object-cover rounded-lg shadow-md "
         />
         <h1 className="absolute bottom-4 left-4 text-white text-3xl font-bold drop-shadow-lg">
-          Leezenbox: Münster Hiltrup
+          Leezenbox: Münster Hiltrup {leezenboxId}
         </h1>
       </div>
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
