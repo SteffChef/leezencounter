@@ -1,31 +1,18 @@
+"use server";
+
 import { Leezenbox } from "@/types";
+import { Pool } from "pg";
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+});
 
 export async function getLeezenboxs(): Promise<Leezenbox[]> {
   try {
-    // Use absolute URL with the appropriate base URL
-    const baseUrl =
-      process.env.VERCEL_BRANCH_URL ||
-      (typeof window !== "undefined"
-        ? window.location.origin
-        : "http://localhost:3000");
-
-    const response = await fetch(`${baseUrl}/api/leezenbox`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      // Make sure it's treated as a server-side request in Next.js
-      cache: "no-store",
-    });
-
-    if (!response.ok) {
-      throw new Error("Failed to fetch data");
-    }
-
-    const data = await response.json();
-    return data;
+    const result = await pool.query("SELECT * FROM leezenbox");
+    return result.rows;
   } catch (error) {
-    console.error("Fetch error:", error);
-    throw error;
+    console.error(error);
+    return [];
   }
 }

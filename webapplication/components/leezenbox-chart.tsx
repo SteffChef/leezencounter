@@ -72,8 +72,6 @@ export function LeezenboxChart({ data }: LeezenboxChartProps) {
     React.useState<DataPoint | null>(null);
   const [isModalOpen, setIsModalOpen] = React.useState(false);
 
-  console.log(data);
-
   React.useEffect(() => {
     if (isMobile) {
       setTimeRange("7d");
@@ -198,8 +196,6 @@ export function LeezenboxChart({ data }: LeezenboxChartProps) {
         });
     }
   };
-
-  console.log(sortedData);
 
   return (
     <Card className="@container/card">
