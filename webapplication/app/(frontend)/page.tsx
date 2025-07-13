@@ -44,7 +44,7 @@ export default function Home() {
           <Link
             key={button.title}
             href={button.url}
-            className="flex items-center p-4 bg-white rounded-lg shadow-md hover:shadow-lg transition"
+            className="flex items-center p-4 bg-background border border-accent rounded-lg shadow-sm hover:shadow-md transition dark:shadow-gray-800 hover:bg-sidebar"
           >
             <button.icon className="mr-2" />
             <span>{button.title}</span>

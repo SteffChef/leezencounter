@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Area, AreaChart, CartesianGrid, XAxis } from "recharts";
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
@@ -288,6 +288,16 @@ export function LeezenboxChart({ data }: LeezenboxChartProps) {
               }
               interval="preserveStartEnd"
               tickFormatter={formatXAxisTick}
+            />
+            <YAxis
+              dataKey="visitors"
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
+              minTickGap={
+                timeRange === "24h" ? 80 : timeRange === "7d" ? 60 : 40
+              }
+              interval="preserveStartEnd"
             />
             <ChartTooltip
               cursor={false}

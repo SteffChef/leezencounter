@@ -28,7 +28,7 @@ const LeezenboxesOverview = async () => {
           <Link
             href={`/leezenboxes/${leezenbox.id}`}
             key={leezenbox.id}
-            className="w-full mb-2 bg-accent px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-shadow"
+            className="w-full mb-2 px-4 py-2 rounded-lg shadow-sm hover:shadow-md transition dark:shadow-gray-800 hover:bg-sidebar border border-accent"
           >
             <h3 className="text-md font-medium">{leezenbox.name}</h3>
             <p className="text-sm text-gray-500">
