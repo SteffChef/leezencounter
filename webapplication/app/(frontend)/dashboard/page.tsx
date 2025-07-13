@@ -10,7 +10,7 @@ const DashboardPage = async () => {
     <>
       <h1 className="text-xl font-bold">Leezenbox Dashboard</h1>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="flex flex-col justify-between h-full ">
+        <div className="flex flex-col gap-4 justify-between h-full ">
           <LeezenboxStatCard
             description="Total current visitors"
             title="145 / 200"

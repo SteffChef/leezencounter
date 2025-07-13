@@ -68,7 +68,7 @@ export default function LeezenboxMap({ data }: Props) {
         ))}
       </MapContainer>
       <Sheet open={!!selectedBox} onOpenChange={() => setSelectedBox(null)}>
-        <SheetContent className="bg-white sm:max-w-[50vw] max-w-[80vw] md:max-w-[40vw] lg:max-w-[30vw] p-4">
+        <SheetContent className=" sm:max-w-[50vw] max-w-[80vw] md:max-w-[40vw] lg:max-w-[30vw] p-4">
           <SheetHeader>
             <SheetTitle>{selectedBox?.name}</SheetTitle>
             <SheetDescription>

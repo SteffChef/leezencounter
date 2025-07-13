@@ -17,7 +17,7 @@ const LeezenboxCard: React.FC<LeezenboxCardProps> = ({ leezenbox }) => {
 
   return (
     <Link href={`/leezenboxes/${leezenbox.id}`}>
-      <Card className="@container/card hover:shadow-lg transition-shadow">
+      <Card className="@container/card hover:shadow-md transition border border-accent dark:shadow-gray-800 hover:bg-sidebar">
         <CardHeader>
           <h2 className="text-lg font-semibold">{leezenbox.name}</h2>
         </CardHeader>
