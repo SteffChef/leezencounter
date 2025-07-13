@@ -2,7 +2,7 @@ export async function getLeezenboxs() {
   try {
     // Use absolute URL with the appropriate base URL
     const baseUrl =
-      process.env.NEXT_PUBLIC_APP_URL ||
+      process.env.VERCEL_BRANCH_URL ||
       (typeof window !== "undefined"
         ? window.location.origin
         : "http://localhost:3000");
