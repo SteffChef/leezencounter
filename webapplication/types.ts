@@ -28,3 +28,12 @@ export interface DataPoint {
   timestamp: string; // ISO date string
   predictions: Prediction[];
 }
+
+export interface LeezenboxOccupancy {
+  bikes: number;
+  saddles: number;
+}
+
+export interface LeezenboxOccupancies {
+  [leezenboxId: number]: LeezenboxOccupancy;
+}

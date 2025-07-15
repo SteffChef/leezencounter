@@ -39,8 +39,8 @@ import BorderBox from "./border-box";
 export const description = "An interactive area chart";
 
 const chartConfig = {
-  visitors: {
-    label: "Visitors",
+  bicycles: {
+    label: "Bicycles",
   },
   desktop: {
     label: "Desktop",
@@ -60,7 +60,7 @@ interface ChartClickEvent {
   activePayload?: Array<{
     payload: {
       timestamp: string;
-      visitors: number;
+      bicycles: number;
     };
   }>;
 }
@@ -120,7 +120,8 @@ export function LeezenboxChart({ data }: LeezenboxChartProps) {
 
   const adjustedData = filteredData.map((item) => ({
     timestamp: item.timestamp,
-    visitors: item.predictions.length || 0,
+    bicycles: item.predictions.filter((p) => p.category === 1).length || 0,
+    saddles: item.predictions.filter((p) => p.category === 2).length || 0,
   }));
 
   // Sort data by timestamp to ensure proper ordering
@@ -290,7 +291,7 @@ export function LeezenboxChart({ data }: LeezenboxChartProps) {
               tickFormatter={formatXAxisTick}
             />
             <YAxis
-              dataKey="visitors"
+              dataKey="bicycles"
               tickLine={false}
               axisLine={false}
               tickMargin={8}
@@ -310,20 +311,13 @@ export function LeezenboxChart({ data }: LeezenboxChartProps) {
               }
             />
             <Area
-              dataKey="visitors"
-              type="natural"
+              dataKey="bicycles"
+              type="monotone"
               fill="url(#fillMobile)"
               stroke="var(--color-mobile)"
               stackId="a"
               style={{ cursor: "pointer" }}
             />
-            {/* <Area
-              dataKey="desktop"
-              type="natural"
-              fill="url(#fillDesktop)"
-              stroke="var(--color-desktop)"
-              stackId="a"
-            /> */}
           </AreaChart>
         </ChartContainer>
       </CardContent>

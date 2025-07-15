@@ -1,5 +1,6 @@
 import { Card, CardFooter, CardHeader } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { getLatestOccupancyByLeezenboxId } from "@/example-data";
 import { Leezenbox } from "@/types";
 import Image from "next/image";
 import Link from "next/link";
@@ -9,7 +10,8 @@ interface LeezenboxCardProps {
 }
 
 const LeezenboxCard: React.FC<LeezenboxCardProps> = ({ leezenbox }) => {
-  const occupancy = 29; // Example occupancy value
+  const leezenboxData = getLatestOccupancyByLeezenboxId(leezenbox.id);
+  const occupancy = leezenboxData?.bikes || 0;
   const progressValue =
     (occupancy / leezenbox.capacity) * 100 < 100
       ? (occupancy / leezenbox.capacity) * 100

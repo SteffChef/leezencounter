@@ -1,4 +1,3 @@
-import { getLeezenboxs } from "@/actions/get-leezenboxs";
 import {
   Card,
   CardDescription,
@@ -7,11 +6,18 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { Leezenbox, LeezenboxOccupancies } from "@/types";
 import Link from "next/link";
 
-const LeezenboxesOverview = async () => {
-  const leezenboxes = await getLeezenboxs();
-  const occupancy = 29; // Example occupancy value
+interface LeezenboxesOverviewProps {
+  leezenboxes: Leezenbox[];
+  leezenboxOccupancies: LeezenboxOccupancies;
+}
+
+const LeezenboxesOverview: React.FC<LeezenboxesOverviewProps> = async ({
+  leezenboxes,
+  leezenboxOccupancies,
+}) => {
   return (
     <Card className="@container/card">
       <CardHeader>
@@ -32,15 +38,21 @@ const LeezenboxesOverview = async () => {
           >
             <h3 className="text-md font-medium">{leezenbox.name}</h3>
             <p className="text-sm text-gray-500">
-              {occupancy} / {leezenbox.capacity}
+              {leezenboxOccupancies[leezenbox.id]?.bikes || 0} /{" "}
+              {leezenbox.capacity}
             </p>
             <Progress
               value={
-                (occupancy / leezenbox.capacity) * 100 < 100
-                  ? (occupancy / leezenbox.capacity) * 100
+                ((leezenboxOccupancies[leezenbox.id]?.bikes || 0) /
+                  leezenbox.capacity) *
+                  100 <
+                100
+                  ? ((leezenboxOccupancies[leezenbox.id]?.bikes || 0) /
+                      leezenbox.capacity) *
+                    100
                   : 100
               }
-              className={` w-full`}
+              className={`w-full`}
             />
           </Link>
         ))}
