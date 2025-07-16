@@ -2,7 +2,7 @@ from os import PathLike
 from pathlib import Path
 from typing import Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class YoloTrainArgs(BaseModel):
@@ -16,11 +16,36 @@ class YoloTrainArgs(BaseModel):
         extra = "allow"
 
 
+class DataSplitArgs(BaseModel):
+    weights: tuple[float, float, float] = Field(
+        ..., description="Ratios for dataset splitting (train, val, test)"
+    )
+    annotated_only: bool = Field(..., description="Whether to split annotated images only")
+
+    class Config:
+        extra = "forbid"
+
+
+class ValidationArgs(BaseModel):
+    split: str = Field('test', description="Data split for validation")
+    save_json: bool = Field(True, description="Whether to save validation results as JSON")
+    save_txt: bool = Field(True, description="Whether to save detection results as TXT")
+    task: str = Field('detect', description="YOLO task for validation")
+
+    class Config:
+        extra = "allow"
+        exclude = ['data']  # will be used from DataConfigSchema
+
+
 class TrainConfigSchema(BaseModel):
     project_name: str = Field(..., description="Name of the W&B project")
     output_dir: str | PathLike = Field(..., description="Directory to save model runs")
     model: str | PathLike = Field(..., description="YOLO model name or path to weights")
     train_args: YoloTrainArgs = Field(..., description="Training arguments for Ultralytics YOLO class")
+    data_split_args: Optional[DataSplitArgs] = Field(
+        None, description="Data split arguments for Ultralytics YOLO class"
+    )
+    val_args: Optional[ValidationArgs] = Field(None, description="Validation arguments for Ultralytics YOLO class")
 
     class Config:
         extra = "forbid"
@@ -34,3 +59,19 @@ class TrainConfigSchema(BaseModel):
             raise ValueError(f"{v} is not a directory")
         if not v.exists():
             raise ValueError(f"Directory {v} does not exist")
+
+    @model_validator(mode="after")
+    def set_default_val_args(self) -> "TrainConfigSchema":
+        if self.val_args is None:
+            # using default values
+            self.val_args = ValidationArgs()
+        return self
+
+
+class DataConfigSchema(BaseModel):
+    path: str = Field(..., description="Absolute path to dataset directory containing images/ and labels/ directories")
+    train: str = Field(..., description="Path to training directory or .txt file, relative to 'path' argument")
+    val: str = Field(..., description="Path to validation directory or .txt file, relative to 'path' argument")
+    test: Optional[str] = Field(..., description="Path to test directory or .txt file, relative to 'path' argument")
+    nc: int = Field(..., description="Number of classes contained in the dataset")
+    names: dict[int, str] = Field(..., description="Mapping from class ID to class name")
