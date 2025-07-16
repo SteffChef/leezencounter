@@ -1,0 +1,155 @@
+[project]
+name = "model-deployment"
+version = "0.1.0"
+description = "Package containing the necessary code for model conversion and deployment"
+readme = "README.md"
+requires-python = ">=3.10,<3.11"
+dependencies = [
+    "click>=8.2.1",
+    "ultralytics>=8.3.151",
+    "poethepoet>=0.22.1,<0.23",
+    "ppq",
+    "onnxruntime>=1.22.0",
+    "onnxslim>=0.1.56",
+    "onnxoptimizer>=0.3.13",
+]
+
+[project.scripts]
+poe = "poethepoet:main"
+model-train = "model_conversion.cli:train"
+
+[project.entry-points."poetry.application.plugin"]
+poethepoet = "poethepoet.plugin:PoetryPlugin"
+
+[dependency-groups]
+ci = [
+    "mypy>=1.5.1,<2",
+    "black>=23.7.0,<24",
+    "pylint>=2.17.5,<3",
+    "isort>=5.12.0,<6",
+    "pytest>=7.1.2,<8",
+    "pytest-cov>=3.0.0,<4",
+    "pycodestyle>=2.11.0,<3",
+    "ruff>=0.11.8",
+    "pre-commit",
+    "types-pyyaml>=6.0.12.20250516",
+]
+notebooks = [
+    "jupyter>=1.1.1",
+]
+
+[tool.uv]
+default-groups = ["ci"]
+
+[tool.uv.sources]
+ppq = { git = "https://github.com/espressif/esp-ppq.git", rev = "7f50fd4259d4220f8bd043995a4ac61c8a0035e3" }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["model_conversion"]
+
+[tool.poe.tasks]
+_clean_docs.script = "shutil:rmtree('docs/_build', ignore_errors=1)"
+
+[tool.poe.tasks.yolo-to-onnx]
+    help = "Converts an Ultralytics YOLO model to ONNX"
+    cmd = "uv run python -m model_conversion.cli convert_yolo"
+
+[tool.poe.tasks.onnx-to-espdl]
+    help = "Converts an ONNX YOLO model to .espdl using PTQ"
+    cmd = "uv run python -m model_conversion.cli quantize_onnx"
+
+[tool.poe.tasks.dev-setup]
+    help = "Setup the project for development"
+    cmd = "uv sync --all-groups"
+
+[tool.poe.tasks.typing]
+    help = "Run MyPy checker on the code base"
+    cmd  = "mypy model_conversion"
+
+[tool.poe.tasks.lint]
+    help = "Run Ruff linter"
+    cmd  = "ruff check"
+
+[tool.poe.tasks.lint-fix]
+    help = "Fix linting and import errors"
+    cmd = "ruff check --fix"
+
+[tool.poe.tasks.fmt]
+    help = "Format code using Ruff"
+    cmd  = "ruff format"
+
+[tool.poe.tasks.isort-fix]
+    help = "Sort imports. This affects the code base as this makes changes to affected files."
+    cmd = "isort model_conversion"
+
+[tool.poe.tasks.isort]
+    help = "Validate isort code style"
+    cmd  = "isort model_conversion --check --diff"
+
+[tool.poe.tasks.ci]
+    help     = "Execute all CI tasks"
+    sequence = ["typing", "lint", "isort"]
+    ignore_fail = true
+
+[tool.poe.tasks.clean]
+    help = "Remove generated files"
+    cmd  = """
+    # multiline commands including comments work too!
+    rm -rf .coverage
+           .mypy_cache
+           .pytest_cache
+           ./**/__pycache__
+           .ruff_cache
+           dist
+           htmlcov
+           ./docs/_build
+           ./tests/fixtures/simple_project/venv
+           ./tests/fixtures/venv_project/myvenv
+           ./tests/fixtures/poetry_plugin_project/**/.venv
+           ./tests/temp
+     """
+
+[tool.poe.tasks.install-poetry-plugin]
+    help = "Install or update this project as a plugin in poetry"
+    sequence = [
+      { cmd = "poetry self remove poethepoet"},
+      { cmd = "poetry self add \"${POE_ROOT}[poetry_plugin]\""}
+    ]
+    ignore_fail = true
+
+[tool.ruff]
+line-length = 120
+src = ["model_conversion"]
+exclude = ["yolo11_detect", "model_deployment", "notebooks"]
+
+[tool.ruff.lint]
+select = ["E", "F"]
+
+[tool.isort]
+profile = "black"
+py_version = 310
+
+[tool.black]
+line-length = 120
+target-version = ["py310"]
+skip-string-normalization = true
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+
+[tool.pylint]
+max-line-length = 120
+disable = [
+    "C0103",  # invalid-name
+    "C0114",  # missing-module-docstring
+    "W1203",  # logging-fstring-interpolation
+    "E0213",  # no-self-argument
+    "E1101",  # no-member
+    "W0511",  # To-Dos
+    "R0903"   # too-few-public-methods
+]

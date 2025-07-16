@@ -1,7 +1,7 @@
 import inspect
 import shutil
 from pathlib import Path
-from typing import Final, Optional
+from typing import Final
 
 import onnx
 import torch
@@ -140,14 +140,14 @@ class YoloConverter:
 
     def __init__(
         self,
+        half: bool,
+        dynamic: bool,
+        simplify: bool,
+        opset: int,
+        nms: bool,
+        batch: int,
+        device: str,
         imgsz: int | tuple[int, int] = 640,
-        half: Optional[bool] = None,
-        dynamic: Optional[bool] = None,
-        simplify: Optional[bool] = None,
-        opset: Optional[int] = None,
-        nms: Optional[bool] = None,
-        batch: Optional[int] = 1,
-        device: str = "cpu",
     ) -> None:
         self._format: Final[str] = "onnx"
         self.imgsz = imgsz
@@ -176,7 +176,7 @@ class YoloConverter:
             raise FileNotFoundError(f"No such file: {torch_model_path.as_posix()}")
         if not torch_model_path.is_file():
             raise ValueError(f"{torch_model_path.as_posix()} is not a file")
-        if not torch_model_path.with_suffix(".pt"):
+        if torch_model_path.suffix != ".pt":
             raise ValueError(f"Expected torch model (.pt), received {torch_model_path.suffix}")
         if onnx_export_path.is_dir():
             raise NotADirectoryError(f"{onnx_export_path.as_posix()} is not a file")

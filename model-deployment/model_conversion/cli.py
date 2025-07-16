@@ -1,8 +1,10 @@
 from pathlib import Path
-from typing import Optional
+from typing import Literal, Optional
 
 import click
 from yolo_converter import YoloConverter
+
+from model_conversion.onnx_converter import OnnxQuantizer
 
 
 def validate_path_exists(ctx, param, value):
@@ -51,7 +53,12 @@ def parse_imgsz(ctx, param, value):
             raise click.BadParameter("Invalid image size. Must be an integer or 'width,height' format")
 
 
-@click.command()
+@click.group()
+def cli():
+    pass
+
+
+@cli.command()
 @click.argument("model", type=click.Path(exists=True, path_type=Path), callback=validate_path_exists)
 @click.argument("output", type=click.Path(path_type=Path), callback=validate_output_dir)
 @click.option(
@@ -67,11 +74,11 @@ def parse_imgsz(ctx, param, value):
     callback=parse_imgsz,
     help="Image size for export. Can be single number (640) or tuple (640,480 or 640x480)",
 )
-@click.option("--half/--no-half", default=None, help="Use FP16 half-precision export")
-@click.option("--dynamic/--no-dynamic", default=None, help="Enable dynamic axes for ONNX export")
-@click.option("--simplify/--no-simplify", default=None, help="Simplify ONNX model")
-@click.option("--opset", type=int, default=None, help="ONNX opset version")
-@click.option("--nms/--no-nms", default=None, help="Add NMS module to ONNX model")
+@click.option("--half/--no-half", default=False, help="Use FP16 half-precision export")
+@click.option("--dynamic/--no-dynamic", default=False, help="Enable dynamic axes for ONNX export")
+@click.option("--simplify/--no-simplify", default=True, help="Simplify ONNX model")
+@click.option("--opset", type=int, default=13, help="ONNX opset version")
+@click.option("--nms/--no-nms", default=False, help="Add NMS module to ONNX model")
 @click.option("--batch", type=int, default=1, help="Batch size for export")
 @click.option("--device", default="cpu", help="Device to use for export (cpu, cuda, etc.)")
 @click.option("--verbose", "-v", is_flag=True, help="Enable verbose output")
@@ -80,11 +87,11 @@ def convert_yolo(
     output: Path,
     config: Optional[Path],
     imgsz,
-    half: Optional[bool],
-    dynamic: Optional[bool],
-    simplify: Optional[bool],
+    half: bool,
+    dynamic: bool,
+    simplify: bool,
     opset: Optional[int],
-    nms: Optional[bool],
+    nms: bool,
     batch: int,
     device: str,
     verbose: bool,
@@ -155,9 +162,28 @@ def convert_yolo(
         raise click.Abort()
 
 
-if __name__ == "__main__":
-    convert_yolo()
-else:
+@cli.command()
+@click.argument("onnx_path", type=click.Path(exists=True, path_type=Path), callback=validate_path_exists)
+@click.argument("espdl_path", type=click.Path(exists=True, path_type=Path), callback=validate_path_exists)
+@click.argument("calib_dataset_path", type=click.Path(exists=True, path_type=Path), callback=validate_path_exists)
+@click.argument("mixed_precision", type=click.BOOL, default=False)
+@click.option("--calib_steps", type=click.IntRange(min=8), default=8, help="Number of calibration steps")
+@click.option("--quant_bits", type=click.Choice([8, 16]), default=8, help="Number of bits used for quantization")
+@click.option("--image_size", type=click.Int, default=640, help="Expected image size of the ONNX model")
+@click.option("--device", type=click.Choice(["cpu", "cuda"], case_sensitive=True), default="cpu")
+def quantize_onnx(
+    onnx_path: Path,
+    espdl_path: Path,
+    calib_dataset_path: Path,
+    mixed_precision: bool,
+    calib_steps: int,
+    quant_bits: Literal[8, 16],
+    image_size: int | tuple[int, int],
+    device: Literal["cpu", "cuda"],
+):
+    quantizer = OnnxQuantizer(calib_dataset_path, image_size, device)
 
-    def main():
-        convert_yolo()
+    if mixed_precision:
+        quantizer.quantize_mixed_precision(onnx_path, espdl_path, calib_steps, device)
+    else:
+        quantizer.quantize_default(onnx_path, espdl_path, calib_steps, quant_bits, device)

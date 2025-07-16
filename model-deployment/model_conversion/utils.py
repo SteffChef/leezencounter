@@ -1,29 +1,36 @@
-import os
 from pathlib import Path
 from typing import Literal
 
+import torch
 from PIL import Image
 from torch.utils.data import Dataset
+from torchvision import transforms
 
 
-class Yolo11CalibrationDataset(Dataset):
+class CalibrationDataset(Dataset):
     """Yolo11 calibration dataset"""
 
-    def __init__(self, image_dir: Path, transform=None, device: Literal['cpu', 'cuda'] = 'cpu') -> None:
+    def __init__(
+        self, image_dir: Path, img_size: int | tuple[int, int], device: Literal["cpu", "cuda"] = "cpu"
+    ) -> None:
         self.image_dir = image_dir
-        self.transform = transform
         self.device = device
-        self.image_files = [
-            os.path.join(image_dir, f) for f in os.listdir(image_dir) if f.lower().endswith((".jpg", ".jpeg"))
-        ]
+        self.image_files = list(image_dir.glob("*.jpg"))
+
+        self.transform = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Resize((img_size, img_size) if isinstance(img_size, int) else img_size),
+                transforms.Normalize(mean=[0, 0, 0], std=[1, 1, 1]),
+            ]
+        )
 
     def __len__(self):
         return len(self.image_files)
 
-    def __getitem__(self, idx):
-        image_path = self.image_files[idx]
-        image = Image.open(image_path).convert("RGB")
-        if self.transform:
-            image = self.transform(image)
-            image = image.to(self.device)
-        return image
+    def __getitem__(self, idx: int) -> torch.Tensor:
+        img = Image.open(self.image_files[idx].as_posix())  # 0~255 hwc #RGB
+        if img.mode == "L":
+            img = img.convert("RGB")  # type: ignore
+        img = self.transform(img)
+        return img  # type: ignore
