@@ -1141,7 +1141,7 @@ requires-dist = [
     { name = "onnxruntime", specifier = ">=1.22.0" },
     { name = "onnxslim", specifier = ">=0.1.56" },
     { name = "poethepoet", specifier = ">=0.22.1,<0.23" },
-    { name = "ppq", git = "https://github.com/espressif/esp-ppq.git" },
+    { name = "ppq", git = "https://github.com/espressif/esp-ppq.git?rev=9445ddd436321189231c824f5b8e02b96e132bd0" },
     { name = "ultralytics", specifier = ">=8.3.151" },
 ]
 
@@ -1676,7 +1676,7 @@ wheels = [
 [[package]]
 name = "ppq"
 version = "0.1.2"
-source = { git = "https://github.com/espressif/esp-ppq.git#7fb3b67e267a49680aaa7ebb390241a159ed60f2" }
+source = { git = "https://github.com/espressif/esp-ppq.git?rev=9445ddd436321189231c824f5b8e02b96e132bd0#9445ddd436321189231c824f5b8e02b96e132bd0" }
 dependencies = [
     { name = "cryptography" },
     { name = "flatbuffers" },

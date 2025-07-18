@@ -178,8 +178,8 @@ class YoloConverter:
             raise ValueError(f"{torch_model_path.as_posix()} is not a file")
         if torch_model_path.suffix != ".pt":
             raise ValueError(f"Expected torch model (.pt), received {torch_model_path.suffix}")
-        if onnx_export_path.is_dir():
-            raise NotADirectoryError(f"{onnx_export_path.as_posix()} is not a file")
+        if not onnx_export_path.is_dir():
+            raise NotADirectoryError(f"{onnx_export_path.as_posix()} is not a directory")
 
         # load .pt model from path
         model = YOLO(torch_model_path.as_posix())

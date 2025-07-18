@@ -2,8 +2,8 @@ from pathlib import Path
 from typing import Literal, Optional
 
 import click
-from yolo_converter import YoloConverter
 
+from model_conversion.yolo_converter import YoloConverter
 from model_conversion.onnx_converter import OnnxQuantizer
 
 
@@ -169,7 +169,7 @@ def convert_yolo(
 @click.argument("mixed_precision", type=click.BOOL, default=False)
 @click.option("--calib_steps", type=click.IntRange(min=8), default=8, help="Number of calibration steps")
 @click.option("--quant_bits", type=click.Choice([8, 16]), default=8, help="Number of bits used for quantization")
-@click.option("--image_size", type=click.Int, default=640, help="Expected image size of the ONNX model")
+@click.option("--image_size", type=click.INT, default=640, help="Expected image size of the ONNX model")
 @click.option("--device", type=click.Choice(["cpu", "cuda"], case_sensitive=True), default="cpu")
 def quantize_onnx(
     onnx_path: Path,

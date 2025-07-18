@@ -40,17 +40,16 @@ class OnnxQuantizer:
         """
         if not file_path.exists():
             raise FileNotFoundError(f"No such file: {file_path.as_posix()}")
-        if not file_path.is_file():
-            raise ValueError(f"{file_path.as_posix()} is not a file")
-        if file_path.suffix != file_format:
-            raise ValueError(
-                f"Invalid file format for onnx_model_path: {file_path.suffix}. Expected {file_format} format"
-            )
+        if file_path.is_file():
+            if file_path.suffix != file_format:
+                raise ValueError(
+                    f"Invalid file format for onnx_model_path: {file_path.suffix}. Expected {file_format} format"
+                )
 
     def quantize_default(
         self,
         onnx_model_path: Path,
-        espdl_export_path: Path,
+        espdl_export_dir_path: Path,
         calibration_steps: int = 8,
         quant_bits: Literal[8, 16] = 8,
         device: Literal["cpu", "cuda"] = "cpu",
@@ -58,7 +57,7 @@ class OnnxQuantizer:
         """
         Convert .onnx model to .espdl format using 8-bit or 16-bit quantization with default settings.
         :param onnx_model_path: Import path to .onnx model file
-        :param espdl_export_path: Export path to .espdl model file (including file name)
+        :param espdl_export_dir_path: Export path to .espdl model directory (excluding file name)
         :param calibration_steps: Number of calibration steps. At least 8 steps are recommended.
         :param quant_bits: Number of bits for integer quantization. Defaults to int8 quantization.
         :param device: Device used for quantization.
@@ -66,11 +65,13 @@ class OnnxQuantizer:
         """
         # validate paths
         self._check_path(onnx_model_path, ".onnx")
-        self._check_path(espdl_export_path, ".espdl")
+        self._check_path(espdl_export_dir_path, ".espdl")
+
+        export_file_path = espdl_export_dir_path / f"{onnx_model_path.stem}.espdl"
 
         quantized_model = espdl_quantize_onnx(
             onnx_import_file=onnx_model_path.as_posix(),
-            espdl_export_file=espdl_export_path.as_posix(),
+            espdl_export_file=export_file_path.as_posix(),
             calib_dataloader=self.calib_dataloader,
             calib_steps=calibration_steps,
             input_shape=self.input_shape,

@@ -42,7 +42,7 @@ notebooks = [
 default-groups = ["ci"]
 
 [tool.uv.sources]
-ppq = { git = "https://github.com/espressif/esp-ppq.git", rev = "7f50fd4259d4220f8bd043995a4ac61c8a0035e3" }
+ppq = { git = "https://github.com/espressif/esp-ppq.git", rev = "9445ddd436321189231c824f5b8e02b96e132bd0" }
 
 [build-system]
 requires = ["hatchling"]
