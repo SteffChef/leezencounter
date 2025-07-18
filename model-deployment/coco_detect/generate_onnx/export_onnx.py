@@ -1,11 +1,11 @@
+import onnx
+import torch
 from ultralytics import YOLO
-from ultralytics.nn.modules import Detect, Attention
 from ultralytics.engine.exporter import Exporter, try_export, arange_patch
-from ultralytics.utils import LOGGER, __version__, colorstr
+from ultralytics.nn.modules import Detect, Attention
+from ultralytics.utils import LOGGER, colorstr
 from ultralytics.utils.checks import check_requirements
 from ultralytics.utils.torch_utils import get_latest_opset
-import torch
-import onnx
 
 
 class ESP_Detect(Detect):
@@ -38,14 +38,12 @@ class ESP_Attention(Attention):
         B, C, H, W = x.shape
         N = H * W
         qkv = self.qkv(x)
-        q, k, v = qkv.view(
-            -1, self.num_heads, self.key_dim * 2 + self.head_dim, N
-        ).split([self.key_dim, self.key_dim, self.head_dim], dim=2)
+        q, k, v = qkv.view(-1, self.num_heads, self.key_dim * 2 + self.head_dim, N).split(
+            [self.key_dim, self.key_dim, self.head_dim], dim=2
+        )
         attn = (q.transpose(-2, -1) @ k) * self.scale
         attn = attn.softmax(dim=-1)
-        x = (v @ attn.transpose(-2, -1)).view(-1, C, H, W) + self.pe(
-            v.reshape(-1, C, H, W)
-        )
+        x = (v @ attn.transpose(-2, -1)).view(-1, C, H, W) + self.pe(v.reshape(-1, C, H, W))
         x = self.proj(x)
         return x
 
@@ -68,9 +66,7 @@ class ESP_Detect_Exporter(Exporter):
         check_requirements(requirements)
 
         opset_version = self.args.opset or get_latest_opset()
-        LOGGER.info(
-            f"\n{prefix} starting export with onnx {onnx.__version__} opset {opset_version}..."
-        )
+        LOGGER.info(f"\n{prefix} starting export with onnx {onnx.__version__} opset {opset_version}...")
         f = str(self.file.with_suffix(".onnx"))
         output_names = ["box0", "score0", "box1", "score1", "box2", "score2"]
         dynamic = (
@@ -101,9 +97,7 @@ class ESP_Detect_Exporter(Exporter):
             try:
                 import onnxsim
 
-                LOGGER.info(
-                    f"{prefix} simplifying with onnxsim {onnxsim.__version__}..."
-                )
+                LOGGER.info(f"{prefix} simplifying with onnxsim {onnxsim.__version__}...")
                 model_onnx, _ = onnxsim.simplify(model_onnx)
 
             except Exception as e:
@@ -132,9 +126,7 @@ class ESP_YOLO(YOLO):
             "verbose": False,
         }
         args = {**self.overrides, **custom, **kwargs, "mode": "export"}
-        return ESP_Detect_Exporter(overrides=args, _callbacks=self.callbacks)(
-            model=self.model
-        )
+        return ESP_Detect_Exporter(overrides=args, _callbacks=self.callbacks)(model=self.model)
 
 
 model = ESP_YOLO("../models/yolo11n.pt")

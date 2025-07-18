@@ -3,8 +3,8 @@ from typing import Literal, Optional
 
 import click
 
-from model_conversion.yolo_converter import YoloConverter
 from model_conversion.onnx_converter import OnnxQuantizer
+from model_conversion.yolo_converter import YoloConverter
 
 
 def validate_path_exists(ctx, param, value):
@@ -90,7 +90,7 @@ def convert_yolo(
     half: bool,
     dynamic: bool,
     simplify: bool,
-    opset: Optional[int],
+    opset: int,
     nms: bool,
     batch: int,
     device: str,
