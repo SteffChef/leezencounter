@@ -124,7 +124,7 @@ _clean_docs.script = "shutil:rmtree('docs/_build', ignore_errors=1)"
 [tool.ruff]
 line-length = 120
 src = ["model_conversion"]
-exclude = ["yolo11_detect", "model_deployment", "notebooks"]
+exclude = ["yolo11_detect", "model_deployment", "notebooks", "*.ipynb"]
 
 [tool.ruff.lint]
 select = ["E", "F"]
