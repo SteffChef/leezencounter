@@ -56,11 +56,11 @@ _clean_docs.script = "shutil:rmtree('docs/_build', ignore_errors=1)"
 
 [tool.poe.tasks.yolo-to-onnx]
     help = "Converts an Ultralytics YOLO model to ONNX"
-    cmd = "uv run python -m model_conversion.cli convert_yolo"
+    cmd = "uv run python -m model_conversion.cli convert-yolo"
 
 [tool.poe.tasks.onnx-to-espdl]
     help = "Converts an ONNX YOLO model to .espdl using PTQ"
-    cmd = "uv run python -m model_conversion.cli quantize_onnx"
+    cmd = "uv run python -m model_conversion.cli quantize-onnx"
 
 [tool.poe.tasks.dev-setup]
     help = "Setup the project for development"

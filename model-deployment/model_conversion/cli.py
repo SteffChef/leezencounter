@@ -35,24 +35,6 @@ def parse_imgsz(ctx, param, value):
     if value is None:
         return 640  # default
 
-    if "," in value or "x" in value:
-        # Handle tuple format like "640,480" or "640x480"
-        separator = "," if "," in value else "x"
-        try:
-            parts = [int(x.strip()) for x in value.split(separator)]
-            if len(parts) == 2:
-                return tuple(parts)
-            else:
-                raise click.BadParameter("Image size tuple must have exactly 2 values")
-        except ValueError:
-            raise click.BadParameter("Invalid image size format. Use single number or 'width,height' or 'widthxheight'")
-    else:
-        try:
-            return int(value)
-        except ValueError:
-            raise click.BadParameter("Invalid image size. Must be an integer or 'width,height' format")
-
-
 @click.group()
 def cli():
     pass
@@ -64,15 +46,16 @@ def cli():
 @click.option(
     "--config",
     "-c",
-    type=click.Path(exists=True, path_type=Path),
+    type=click.Path(exists=True, path_type=Path, dir_okay=False),
     callback=validate_path_exists,
     help="YAML configuration file to load converter settings from",
+    default=None
 )
 @click.option(
     "--imgsz",
-    default="640",
-    callback=parse_imgsz,
-    help="Image size for export. Can be single number (640) or tuple (640,480 or 640x480)",
+    type=click.INT,
+    default=640,
+    help="Image size for export. Must be a single number (640).",
 )
 @click.option("--half/--no-half", default=False, help="Use FP16 half-precision export")
 @click.option("--dynamic/--no-dynamic", default=False, help="Enable dynamic axes for ONNX export")
@@ -187,3 +170,7 @@ def quantize_onnx(
         quantizer.quantize_mixed_precision(onnx_path, espdl_path, calib_steps, device)
     else:
         quantizer.quantize_default(onnx_path, espdl_path, calib_steps, quant_bits, device)
+
+
+if __name__ == "__main__":
+    cli()

@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from typing import Any, Literal
 
@@ -9,14 +10,17 @@ from torch.utils.data import DataLoader
 from model_conversion.core.constants import DEFAULT_QUANT_SETTINGS, TARGET_SOC
 from model_conversion.utils import CalibrationDataset
 
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__)
+
 
 class OnnxQuantizer:
     def __init__(
-        self,
-        calib_data_path: Path,
-        image_size: int | tuple[int, int],
-        device: Literal["cpu", "cuda"] = "cpu",
-        **kwargs: Any,
+            self,
+            calib_data_path: Path,
+            image_size: int | tuple[int, int],
+            device: Literal["cpu", "cuda"] = "cpu",
+            **kwargs: Any,
     ) -> None:
         """
         Initialize calibration dataloader for PTQ
@@ -32,7 +36,7 @@ class OnnxQuantizer:
         self.input_shape = self.calib_dataset[0].unsqueeze(0).shape
 
     @staticmethod
-    def _check_path(file_path: Path, file_format: str) -> None:
+    def _check_file_path(file_path: Path, file_format: str) -> None:
         """
         Check the existence and file format for the specified file path.
         :param file_path: Path to file
@@ -46,13 +50,24 @@ class OnnxQuantizer:
                     f"Invalid file format for onnx_model_path: {file_path.suffix}. Expected {file_format} format"
                 )
 
+    @staticmethod
+    def _check_dir_path(dir_path: Path) -> None:
+        """
+        Checks the existence of a directory and creates it if not present.
+        :param dir_path: Path to directory
+        """
+        if not dir_path.exists():
+            logger.info(f"Directory {dir_path.as_posix()} does not exist.")
+            dir_path.mkdir(parents=True, exist_ok=True)
+            logger.info(f"Directory {dir_path.as_posix()} created.")
+
     def quantize_default(
-        self,
-        onnx_model_path: Path,
-        espdl_export_dir_path: Path,
-        calibration_steps: int = 8,
-        quant_bits: Literal[8, 16] = 8,
-        device: Literal["cpu", "cuda"] = "cpu",
+            self,
+            onnx_model_path: Path,
+            espdl_export_dir_path: Path,
+            calibration_steps: int = 8,
+            quant_bits: Literal[8, 16] = 8,
+            device: Literal["cpu", "cuda"] = "cpu",
     ) -> BaseGraph:
         """
         Convert .onnx model to .espdl format using 8-bit or 16-bit quantization with default settings.
@@ -64,8 +79,8 @@ class OnnxQuantizer:
         returns: Quantized graph from PPQ
         """
         # validate paths
-        self._check_path(onnx_model_path, ".onnx")
-        self._check_path(espdl_export_dir_path, ".espdl")
+        self._check_file_path(onnx_model_path, ".onnx")
+        self._check_dir_path(espdl_export_dir_path)
 
         export_file_path = espdl_export_dir_path / f"{onnx_model_path.stem}.espdl"
 
@@ -93,16 +108,16 @@ class OnnxQuantizer:
         return batch.to(self.device)
 
     def quantize_mixed_precision(
-        self,
-        onnx_model_path: Path,
-        espdl_export_path: Path,
-        calibration_steps: int = 8,
-        device: Literal["cpu", "cuda"] = "cpu",
+            self,
+            onnx_model_path: Path,
+            espdl_export_path: Path,
+            calibration_steps: int = 8,
+            device: Literal["cpu", "cuda"] = "cpu",
     ) -> BaseGraph:
         """ """
         # validate paths
-        self._check_path(onnx_model_path, ".onnx")
-        self._check_path(espdl_export_path, ".espdl")
+        self._check_file_path(onnx_model_path, ".onnx")
+        self._check_file_path(espdl_export_path, ".espdl")
         # Quantize the following layers with 16-bits
         quant_setting = QuantizationSettingFactory.espdl_setting()
         quant_setting.dispatching_table.append("/model.2/cv2/conv/Conv", get_target_platform(TARGET_SOC, 16))
