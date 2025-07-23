@@ -50,7 +50,7 @@ def cli():
     type=click.Path(exists=True, path_type=Path, dir_okay=False),
     callback=validate_path_exists,
     help="YAML configuration file to load converter settings from",
-    default=None
+    default=None,
 )
 @click.option(
     "--imgsz",
@@ -67,18 +67,18 @@ def cli():
 @click.option("--device", default="cpu", help="Device to use for export (cpu, cuda, etc.)")
 @click.option("--verbose", "-v", is_flag=True, help="Enable verbose output")
 def convert_yolo(
-        model: Path,
-        output: Path,
-        config: Optional[Path],
-        imgsz,
-        half: bool,
-        dynamic: bool,
-        simplify: bool,
-        opset: int,
-        nms: bool,
-        batch: int,
-        device: str,
-        verbose: bool,
+    model: Path,
+    output: Path,
+    config: Optional[Path],
+    imgsz,
+    half: bool,
+    dynamic: bool,
+    simplify: bool,
+    opset: int,
+    nms: bool,
+    batch: int,
+    device: str,
+    verbose: bool,
 ):
     """
     Convert Ultralytics YOLO model to ONNX format.
@@ -147,23 +147,23 @@ def convert_yolo(
 
 
 @cli.command()
-@click.argument("onnx_path", type=click.Path(exists=True, path_type=Path), callback=validate_path_exists)
-@click.argument("espdl_path", type=click.Path(exists=True, path_type=Path), callback=validate_path_exists)
-@click.argument("calib_dataset_path", type=click.Path(exists=True, path_type=Path), callback=validate_path_exists)
-@click.argument("mixed_precision", type=click.BOOL, default=False)
-@click.option("--calib_steps", type=click.IntRange(min=8), default=8, help="Number of calibration steps")
-@click.option("--quant_bits", type=click.Choice([8, 16]), default=8, help="Number of bits used for quantization")
-@click.option("--image_size", type=click.INT, default=640, help="Expected image size of the ONNX model")
+@click.argument("onnx-path", type=click.Path(exists=True, path_type=Path), callback=validate_path_exists)
+@click.argument("espdl-path", type=click.Path(exists=True, path_type=Path), callback=validate_path_exists)
+@click.argument("calib-dataset-path", type=click.Path(exists=True, path_type=Path), callback=validate_path_exists)
+@click.argument("mixed-precision", type=click.BOOL, default=False)
+@click.option("--calib-steps", type=click.IntRange(min=8), default=8, help="Number of calibration steps")
+@click.option("--quant-bits", type=click.Choice([8, 16]), default=8, help="Number of bits used for quantization")
+@click.option("--image-size", type=click.INT, default=640, help="Expected image size of the ONNX model")
 @click.option("--device", type=click.Choice(["cpu", "cuda"], case_sensitive=True), default="cpu")
 def quantize_onnx(
-        onnx_path: Path,
-        espdl_path: Path,
-        calib_dataset_path: Path,
-        mixed_precision: bool,
-        calib_steps: int,
-        quant_bits: Literal[8, 16],
-        image_size: int | tuple[int, int],
-        device: Literal["cpu", "cuda"],
+    onnx_path: Path,
+    espdl_path: Path,
+    calib_dataset_path: Path,
+    mixed_precision: bool,
+    calib_steps: int,
+    quant_bits: Literal[8, 16],
+    image_size: int | tuple[int, int],
+    device: Literal["cpu", "cuda"],
 ):
     quantizer = OnnxQuantizer(calib_dataset_path, image_size, device)
 

@@ -12,6 +12,7 @@ dependencies = [
     "onnxruntime>=1.22.0",
     "onnxslim>=0.1.56",
     "onnxoptimizer>=0.3.13",
+    "setuptools>=80.9.0",
 ]
 
 [project.scripts]

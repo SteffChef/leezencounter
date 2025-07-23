@@ -182,7 +182,7 @@ class YoloConverter:
             raise NotADirectoryError(f"{onnx_export_path.as_posix()} is not a directory")
 
         # load .pt model from path
-        model = YOLO(torch_model_path.as_posix())
+        model = EspYOLO(torch_model_path.as_posix())
         for module in model.modules():
             if isinstance(module, Attention):
                 module.forward = EspAttention.forward.__get__(module)

@@ -16,11 +16,11 @@ logger = logging.getLogger(__name__)
 
 class OnnxQuantizer:
     def __init__(
-            self,
-            calib_data_path: Path,
-            image_size: int | tuple[int, int],
-            device: Literal["cpu", "cuda"] = "cpu",
-            **kwargs: Any,
+        self,
+        calib_data_path: Path,
+        image_size: int | tuple[int, int],
+        device: Literal["cpu", "cuda"] = "cpu",
+        **kwargs: Any,
     ) -> None:
         """
         Initialize calibration dataloader for PTQ
@@ -62,12 +62,12 @@ class OnnxQuantizer:
             logger.info(f"Directory {dir_path.as_posix()} created.")
 
     def quantize_default(
-            self,
-            onnx_model_path: Path,
-            espdl_export_dir_path: Path,
-            calibration_steps: int = 8,
-            quant_bits: Literal[8, 16] = 8,
-            device: Literal["cpu", "cuda"] = "cpu",
+        self,
+        onnx_model_path: Path,
+        espdl_export_dir_path: Path,
+        calibration_steps: int = 8,
+        quant_bits: Literal[8, 16] = 8,
+        device: Literal["cpu", "cuda"] = "cpu",
     ) -> BaseGraph:
         """
         Convert .onnx model to .espdl format using 8-bit or 16-bit quantization with default settings.
@@ -91,7 +91,7 @@ class OnnxQuantizer:
             calib_steps=calibration_steps,
             input_shape=self.input_shape,
             inputs=None,
-            target=TARGET_SOC,
+            target="c",
             num_of_bits=quant_bits,
             collate_fn=self._collate_fn,
             dispatching_override=None,
@@ -108,11 +108,11 @@ class OnnxQuantizer:
         return batch.to(self.device)
 
     def quantize_mixed_precision(
-            self,
-            onnx_model_path: Path,
-            espdl_export_path: Path,
-            calibration_steps: int = 8,
-            device: Literal["cpu", "cuda"] = "cpu",
+        self,
+        onnx_model_path: Path,
+        espdl_export_path: Path,
+        calibration_steps: int = 8,
+        device: Literal["cpu", "cuda"] = "cpu",
     ) -> BaseGraph:
         """ """
         # validate paths
