@@ -35,6 +35,7 @@ def parse_imgsz(ctx, param, value):
     if value is None:
         return 640  # default
 
+
 @click.group()
 def cli():
     pass
@@ -66,18 +67,18 @@ def cli():
 @click.option("--device", default="cpu", help="Device to use for export (cpu, cuda, etc.)")
 @click.option("--verbose", "-v", is_flag=True, help="Enable verbose output")
 def convert_yolo(
-    model: Path,
-    output: Path,
-    config: Optional[Path],
-    imgsz,
-    half: bool,
-    dynamic: bool,
-    simplify: bool,
-    opset: int,
-    nms: bool,
-    batch: int,
-    device: str,
-    verbose: bool,
+        model: Path,
+        output: Path,
+        config: Optional[Path],
+        imgsz,
+        half: bool,
+        dynamic: bool,
+        simplify: bool,
+        opset: int,
+        nms: bool,
+        batch: int,
+        device: str,
+        verbose: bool,
 ):
     """
     Convert Ultralytics YOLO model to ONNX format.
@@ -155,14 +156,14 @@ def convert_yolo(
 @click.option("--image_size", type=click.INT, default=640, help="Expected image size of the ONNX model")
 @click.option("--device", type=click.Choice(["cpu", "cuda"], case_sensitive=True), default="cpu")
 def quantize_onnx(
-    onnx_path: Path,
-    espdl_path: Path,
-    calib_dataset_path: Path,
-    mixed_precision: bool,
-    calib_steps: int,
-    quant_bits: Literal[8, 16],
-    image_size: int | tuple[int, int],
-    device: Literal["cpu", "cuda"],
+        onnx_path: Path,
+        espdl_path: Path,
+        calib_dataset_path: Path,
+        mixed_precision: bool,
+        calib_steps: int,
+        quant_bits: Literal[8, 16],
+        image_size: int | tuple[int, int],
+        device: Literal["cpu", "cuda"],
 ):
     quantizer = OnnxQuantizer(calib_dataset_path, image_size, device)
 
@@ -170,6 +171,8 @@ def quantize_onnx(
         quantizer.quantize_mixed_precision(onnx_path, espdl_path, calib_steps, device)
     else:
         quantizer.quantize_default(onnx_path, espdl_path, calib_steps, quant_bits, device)
+
+    click.echo(f"Quantized model stored under {espdl_path.as_posix()}")
 
 
 if __name__ == "__main__":
