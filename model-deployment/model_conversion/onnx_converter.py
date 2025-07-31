@@ -7,7 +7,7 @@ from ppq import BaseGraph, QuantizationSettingFactory
 from ppq.api import espdl_quantize_onnx, get_target_platform
 from torch.utils.data import DataLoader
 
-from model_conversion.core.constants import DEFAULT_QUANT_SETTINGS, TARGET_SOC
+from model_conversion.core.constants import TARGET_SOC
 from model_conversion.utils import CalibrationDataset
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -31,9 +31,15 @@ class OnnxQuantizer:
         """
         self.device = device
         self.calib_dataset = CalibrationDataset(calib_data_path, image_size, device)
-        self.calib_dataloader = DataLoader(self.calib_dataset, **kwargs)
+        self.calib_dataloader = DataLoader(
+            self.calib_dataset, batch_size=1, shuffle=False, num_workers=0, pin_memory=False, **kwargs
+        )
         # extract input shape, batch size = 1
-        self.input_shape = self.calib_dataset[0].unsqueeze(0).shape
+        x = self.calib_dataset[0]
+        if isinstance(x, (tuple, list)):
+            x = x[0]
+        x = x.unsqueeze(0)
+        self.input_shape = x.shape
 
     @staticmethod
     def _check_file_path(file_path: Path, file_format: str) -> None:
@@ -91,7 +97,7 @@ class OnnxQuantizer:
             calib_steps=calibration_steps,
             input_shape=self.input_shape,
             inputs=None,
-            target="c",
+            target=TARGET_SOC,
             num_of_bits=quant_bits,
             collate_fn=self._collate_fn,
             dispatching_override=None,
@@ -100,7 +106,7 @@ class OnnxQuantizer:
             skip_export=False,
             export_test_values=True,
             verbose=1,
-            setting=DEFAULT_QUANT_SETTINGS,
+            # setting=DEFAULT_QUANT_SETTINGS,
         )
         return quantized_model
 

@@ -21,7 +21,6 @@ class CalibrationDataset(Dataset):
             [
                 transforms.ToTensor(),
                 transforms.Resize((img_size, img_size) if isinstance(img_size, int) else img_size),
-                transforms.Normalize(mean=[0, 0, 0], std=[1, 1, 1]),
             ]
         )
 
@@ -29,8 +28,6 @@ class CalibrationDataset(Dataset):
         return len(self.image_files)
 
     def __getitem__(self, idx: int) -> torch.Tensor:
-        img = Image.open(self.image_files[idx].as_posix())  # 0~255 hwc #RGB
-        if img.mode == "L":
-            img = img.convert("RGB")  # type: ignore
+        img = Image.open(self.image_files[idx].as_posix()).convert('RGB')  # 0~255 hwc #RGB
         img = self.transform(img)
         return img  # type: ignore
