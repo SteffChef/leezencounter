@@ -342,6 +342,7 @@ export function LeezenboxChart({ data }: LeezenboxChartProps) {
               predictions={
                 selectedDataPoint ? selectedDataPoint?.predictions : []
               }
+              backgroundImageSrc="/assets/blank_image.jpg"
             />
           </div>
         </DialogContent>
