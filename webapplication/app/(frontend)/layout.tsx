@@ -6,6 +6,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import BreadcrumbUI from "@/components/breadcumb-ui";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ModeToggle } from "@/components/mode-toggle";
+import Link from "next/link";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -43,6 +44,9 @@ export default function RootLayout({
             <main className="w-full h-screen flex flex-col">
               <div className="flex items-center gap-4 mx-4 mt-4">
                 <SidebarTrigger className="cursor-pointer" />
+                <Link href="/" className="text-lg font-bold">
+                  Leezencounter
+                </Link>
                 <BreadcrumbUI />
                 <div className="ml-auto">
                   <ModeToggle />

@@ -1,336 +1,133 @@
-import { DataPoint } from "./types";
+import { DataPoint, LeezenboxOccupancies, LeezenboxOccupancy } from "./types";
 
-export const exampleDataPoints: DataPoint[] = [
-  {
-    id: 1,
-    leezenbox_id: 101,
-    timestamp: "2025-07-06T08:15:30.000Z",
-    predictions: [
-      {
-        category: 1,
-        bbox: [0.554063, 0.8, 0.071875, 0.4],
-        confidence: 0.95,
-      },
-      {
+// Seeded random number generator for consistent results
+function seededRandom(seed: number): number {
+  const x = Math.sin(seed) * 10000;
+  return x - Math.floor(x);
+}
+
+// Generate consistent pseudo-random data based on timestamp
+function generatePredictionsForHour(
+  timestamp: Date,
+  leezenboxId: number
+): DataPoint["predictions"] {
+  const baseSeed = Math.floor(timestamp.getTime() / 1000) + leezenboxId;
+  let currentSeed = baseSeed;
+
+  const random = () => {
+    currentSeed++;
+    return seededRandom(currentSeed);
+  };
+
+  const predictions: DataPoint["predictions"] = [];
+
+  // Determine number of detections (0-8 bikes/saddles with some probability distribution)
+  const detectionCount = Math.floor(random() * 9); // 0-8 detections
+
+  if (detectionCount === 0) {
+    return predictions; // Empty predictions array
+  }
+
+  for (let i = 0; i < detectionCount; i++) {
+    const baseX = random();
+    const baseY = random();
+    const width = 0.02 + random() * 0.08; // Width between 0.02 and 0.1
+    const height = 0.03 + random() * 0.1; // Height between 0.03 and 0.13
+
+    // Bike prediction (category 1)
+    predictions.push({
+      category: 1,
+      bbox: [
+        Math.max(0, Math.min(1 - width, baseX)), // x
+        Math.max(0, Math.min(1 - height, baseY)), // y
+        width, // width
+        height, // height
+      ],
+      confidence: 0.75 + random() * 0.2, // Confidence between 0.75 and 0.95
+    });
+
+    // Add corresponding saddle prediction (category 2) with high probability
+    if (random() > 0.2) {
+      // 80% chance of having a saddle
+      predictions.push({
         category: 2,
-        bbox: [0.28125, 0.183333, 0.3, 0.216667],
-        confidence: 0.87,
-      },
-    ],
-  },
-  {
-    id: 2,
-    leezenbox_id: 101,
-    timestamp: "2025-07-06T08:22:15.000Z",
-    predictions: [
-      {
-        category: 1,
-        bbox: [320, 195, 350, 225],
-        confidence: 0.95,
-      },
-      {
-        category: 2,
-        bbox: [580, 240, 600, 270],
-        confidence: 0.78,
-      },
-      {
+        bbox: [
+          Math.max(
+            0,
+            Math.min(1 - width * 0.8, baseX + (random() - 0.5) * 0.02)
+          ), // Slightly offset x
+          Math.max(0, Math.min(1 - height * 0.6, baseY - height * 0.3)), // Above the bike
+          width * 0.8, // Smaller width
+          height * 0.6, // Smaller height
+        ],
+        confidence: 0.7 + random() * 0.25, // Confidence between 0.7 and 0.95
+      });
+    }
+
+    // Occasionally add person detection (category 0) with lower probability
+    if (random() > 0.7) {
+      // 30% chance of having a person
+      predictions.push({
         category: 0,
-        bbox: [320, 165, 350, 195],
-        confidence: 0.89,
-      },
-      {
-        category: 2,
-        bbox: [320, 165, 350, 195],
-        confidence: 0.89,
-      },
-      {
-        category: 0,
-        bbox: [320, 165, 350, 195],
-        confidence: 0.89,
-      },
-    ],
-  },
-  {
-    id: 3,
-    leezenbox_id: 102,
-    timestamp: "2025-07-06T09:05:42.000Z",
-    predictions: [
-      {
-        category: 1,
-        bbox: [150, 300, 180, 330],
-        confidence: 0.84,
-      },
-      {
-        category: 2,
-        bbox: [150, 275, 180, 305],
-        confidence: 0.91,
-      },
-      {
-        category: 1,
-        bbox: [380, 285, 410, 315],
-        confidence: 0.88,
-      },
-      {
-        category: 2,
-        bbox: [380, 260, 410, 290],
-        confidence: 0.82,
-      },
-      {
-        category: 1,
-        bbox: [520, 310, 550, 340],
-        confidence: 0.76,
-      },
-    ],
-  },
-  {
-    id: 4,
-    leezenbox_id: 103,
-    timestamp: "2025-07-06T10:30:18.000Z",
-    predictions: [
-      {
-        category: 1,
-        bbox: [200, 150, 230, 180],
-        confidence: 0.93,
-      },
-      {
-        category: 2,
-        bbox: [200, 125, 230, 155],
-        confidence: 0.85,
-      },
-    ],
-  },
-  {
-    id: 5,
-    leezenbox_id: 101,
-    timestamp: "2025-07-06T11:45:55.000Z",
-    predictions: [],
-  },
-  {
-    id: 6,
-    leezenbox_id: 102,
-    timestamp: "2025-07-06T12:15:33.000Z",
-    predictions: [
-      {
-        category: 1,
-        bbox: [280, 190, 310, 220],
-        confidence: 0.89,
-      },
-      {
-        category: 2,
-        bbox: [280, 165, 310, 195],
-        confidence: 0.94,
-      },
-      {
-        category: 1,
-        bbox: [420, 205, 450, 235],
-        confidence: 0.81,
-      },
-      {
-        category: 2,
-        bbox: [420, 180, 450, 210],
-        confidence: 0.77,
-      },
-      {
-        category: 1,
-        bbox: [550, 220, 580, 250],
-        confidence: 0.86,
-      },
-      {
-        category: 1,
-        bbox: [640, 250, 670, 280],
-        confidence: 0.72,
-      },
-    ],
-  },
-  {
-    id: 7,
-    leezenbox_id: 104,
-    timestamp: "2025-07-06T14:20:10.000Z",
-    predictions: [
-      {
-        category: 1,
-        bbox: [300, 400, 330, 430],
-        confidence: 0.9,
-      },
-      {
-        category: 2,
-        bbox: [300, 375, 330, 405],
-        confidence: 0.88,
-      },
-    ],
-  },
-  {
-    id: 8,
-    leezenbox_id: 103,
-    timestamp: "2025-07-06T15:55:27.000Z",
-    predictions: [
-      {
-        category: 1,
-        bbox: [180, 120, 210, 150],
-        confidence: 0.95,
-      },
-      {
-        category: 2,
-        bbox: [180, 95, 210, 125],
-        confidence: 0.92,
-      },
-      {
-        category: 1,
-        bbox: [350, 140, 380, 170],
-        confidence: 0.83,
-      },
-      {
-        category: 2,
-        bbox: [350, 115, 380, 145],
-        confidence: 0.79,
-      },
-      {
-        category: 1,
-        bbox: [480, 160, 510, 190],
-        confidence: 0.87,
-      },
-    ],
-  },
-  {
-    id: 9,
-    leezenbox_id: 101,
-    timestamp: "2025-07-09T16:30:00.000Z",
-    predictions: [
-      // Category 0 predictions
-      {
-        category: 0,
-        bbox: [0.554063, 0.8, 0.071875, 0.4],
-        confidence: 0.85,
-      },
-      {
-        category: 0,
-        bbox: [0.46375, 0.797917, 0.0525, 0.394167],
-        confidence: 0.82,
-      },
-      {
-        category: 0,
-        bbox: [0.399375, 0.735, 0.0575, 0.391667],
-        confidence: 0.88,
-      },
-      {
-        category: 0,
-        bbox: [0.707187, 0.744583, 0.100625, 0.349167],
-        confidence: 0.9,
-      },
-      {
-        category: 0,
-        bbox: [0.765938, 0.788333, 0.068125, 0.343333],
-        confidence: 0.87,
-      },
-      {
-        category: 0,
-        bbox: [0.1775, 0.659167, 0.12625, 0.323333],
-        confidence: 0.83,
-      },
-      {
-        category: 0,
-        bbox: [0.335938, 0.635417, 0.100625, 0.3775],
-        confidence: 0.89,
-      },
-      {
-        category: 0,
-        bbox: [0.269062, 0.757083, 0.113125, 0.289167],
-        confidence: 0.84,
-      },
-      {
-        category: 0,
-        bbox: [0.849688, 0.595, 0.125625, 0.33],
-        confidence: 0.86,
-      },
-      {
-        category: 0,
-        bbox: [0.04375, 0.555833, 0.0875, 0.333333],
-        confidence: 0.81,
-      },
-      {
-        category: 0,
-        bbox: [0.860938, 0.785417, 0.094375, 0.335833],
-        confidence: 0.88,
-      },
-      {
-        category: 0,
-        bbox: [0.921875, 0.724583, 0.13625, 0.299167],
-        confidence: 0.85,
-      },
-      {
-        category: 0,
-        bbox: [0.8075, 0.13125, 0.075, 0.2625],
-        confidence: 0.79,
-      },
-      // Category 1 predictions
-      {
-        category: 1,
-        bbox: [0.56875, 0.745, 0.0375, 0.081667],
-        confidence: 0.92,
-      },
-      {
-        category: 1,
-        bbox: [0.45625, 0.775417, 0.03, 0.070833],
-        confidence: 0.9,
-      },
-      {
-        category: 1,
-        bbox: [0.385313, 0.695, 0.035625, 0.066667],
-        confidence: 0.88,
-      },
-      {
-        category: 1,
-        bbox: [0.33625, 0.590833, 0.0425, 0.06],
-        confidence: 0.85,
-      },
-      {
-        category: 1,
-        bbox: [0.129688, 0.635417, 0.033125, 0.069167],
-        confidence: 0.87,
-      },
-      {
-        category: 1,
-        bbox: [0.759687, 0.722917, 0.045625, 0.064167],
-        confidence: 0.91,
-      },
-      {
-        category: 1,
-        bbox: [0.821562, 0.786667, 0.036875, 0.065],
-        confidence: 0.89,
-      },
-      {
-        category: 1,
-        bbox: [0.913438, 0.555, 0.030625, 0.058333],
-        confidence: 0.84,
-      },
-      {
-        category: 1,
-        bbox: [0.920937, 0.765417, 0.024375, 0.065833],
-        confidence: 0.86,
-      },
-      {
-        category: 1,
-        bbox: [0.958125, 0.695, 0.01875, 0.05],
-        confidence: 0.83,
-      },
-      {
-        category: 1,
-        bbox: [0.88875, 0.037917, 0.035, 0.0525],
-        confidence: 0.8,
-      },
-      {
-        category: 1,
-        bbox: [0.990938, 0.104167, 0.018124, 0.041667],
-        confidence: 0.78,
-      },
-      {
-        category: 1,
-        bbox: [0.252912, 0.759983, 0.034942, 0.062396],
-        confidence: 0.87,
-      },
-    ],
-  },
-];
+        bbox: [
+          Math.max(
+            0,
+            Math.min(1 - width * 1.5, baseX + (random() - 0.5) * 0.1)
+          ), // More offset x
+          Math.max(0, Math.min(1 - height * 2, baseY - height * 0.5)), // Above bike/saddle
+          width * 1.5, // Larger width
+          height * 2, // Much larger height
+        ],
+        confidence: 0.65 + random() * 0.25, // Confidence between 0.65 and 0.9
+      });
+    }
+  }
+
+  return predictions;
+}
+
+// Generate dynamic example data for the last 24 hours (1 per hour)
+function generateExampleDataPoints(): DataPoint[] {
+  const now = new Date();
+  const dataPoints: DataPoint[] = [];
+  const leezenboxIds = [1, 2, 3, 4, 5];
+
+  // Generate data for last 24 hours, one entry per hour
+  for (let hoursAgo = 23; hoursAgo >= 0; hoursAgo--) {
+    const timestamp = new Date(now.getTime() - hoursAgo * 60 * 60 * 1000);
+    // Round to the hour for consistency
+    timestamp.setMinutes(0, 0, 0);
+
+    // Use the hour and day to determine which leezenbox(es) have data
+    const hourSeed = timestamp.getHours() + timestamp.getDate();
+    const activeLeezenboxes = leezenboxIds.filter(
+      (_, index) => seededRandom(hourSeed + index) > 0.3 // 70% chance each box is active
+    );
+
+    // Ensure at least one leezenbox is active per hour
+    if (activeLeezenboxes.length === 0) {
+      activeLeezenboxes.push(leezenboxIds[hourSeed % leezenboxIds.length]);
+    }
+
+    activeLeezenboxes.forEach((leezenboxId, index) => {
+      const id = (23 - hoursAgo) * 10 + index + 1; // Generate consistent IDs
+
+      dataPoints.push({
+        id,
+        leezenbox_id: leezenboxId,
+        timestamp: timestamp.toISOString(),
+        predictions: generatePredictionsForHour(timestamp, leezenboxId),
+      });
+    });
+  }
+
+  return dataPoints.sort(
+    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+  );
+}
+
+// Export the dynamic data points
+export const exampleDataPoints: DataPoint[] = generateExampleDataPoints();
 
 // Helper function to get data points for a specific leezenbox
 export const getDataPointsByLeezenboxId = (
@@ -365,4 +162,43 @@ export const countBikesInDataPoint = (dataPoint: DataPoint): number => {
 export const countSaddlesInDataPoint = (dataPoint: DataPoint): number => {
   return dataPoint.predictions.filter((prediction) => prediction.category === 2)
     .length;
+};
+
+// Helper function to get the latest occupancy count for a leezenbox
+export const getLatestOccupancyByLeezenboxId = (
+  leezenboxId: number
+): LeezenboxOccupancy => {
+  const latestDataPoint = exampleDataPoints
+    .filter((dp) => dp.leezenbox_id === leezenboxId)
+    .sort(
+      (a, b) =>
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    )[0];
+
+  if (!latestDataPoint) {
+    return { bikes: 0, saddles: 0 };
+  }
+
+  const bikes = countBikesInDataPoint(latestDataPoint);
+  const saddles = countSaddlesInDataPoint(latestDataPoint);
+
+  return { bikes, saddles };
+};
+
+// Helper function to get the latest occupancy for all leezenboxes
+export const getLatestOccupancyForAllLeezenboxes = (): LeezenboxOccupancies => {
+  const occupancy: LeezenboxOccupancies = {};
+
+  // Get unique leezenbox IDs
+  const uniqueLeezenboxIds = Array.from(
+    new Set(exampleDataPoints.map((dp) => dp.leezenbox_id))
+  );
+
+  // For each leezenbox, get the latest occupancy
+  uniqueLeezenboxIds.forEach((leezenboxId) => {
+    const latestOccupancy = getLatestOccupancyByLeezenboxId(leezenboxId);
+    occupancy[leezenboxId] = latestOccupancy;
+  });
+
+  return occupancy;
 };

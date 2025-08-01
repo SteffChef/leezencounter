@@ -1,12 +1,17 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { Prediction } from "@/types";
 
 interface BorderBoxProps {
   predictions: Prediction[];
+  backgroundImageSrc?: string; // Optional background image URL
 }
 
-const BorderBox: React.FC<BorderBoxProps> = ({ predictions }) => {
+const BorderBox: React.FC<BorderBoxProps> = ({
+  predictions,
+  backgroundImageSrc,
+}) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const imageRef = useRef<HTMLImageElement | null>(null);
 
   // Original image dimensions
   const ORIGINAL_WIDTH = 1600;
@@ -20,7 +25,7 @@ const BorderBox: React.FC<BorderBoxProps> = ({ predictions }) => {
   const scaleX = CANVAS_WIDTH / ORIGINAL_WIDTH;
   const scaleY = CANVAS_HEIGHT / ORIGINAL_HEIGHT;
 
-  useEffect(() => {
+  const drawCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -30,9 +35,14 @@ const BorderBox: React.FC<BorderBoxProps> = ({ predictions }) => {
     // Clear canvas
     ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    // Set canvas background
-    ctx.fillStyle = "#f8f9fa";
-    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    // Draw background image if available
+    if (imageRef.current) {
+      ctx.drawImage(imageRef.current, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    } else {
+      // Set canvas background color if no image
+      ctx.fillStyle = "#f8f9fa";
+      ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    }
 
     // Draw bounding boxes
     predictions.forEach((prediction) => {
@@ -78,6 +88,30 @@ const BorderBox: React.FC<BorderBoxProps> = ({ predictions }) => {
       ctx.fillText(label, scaledX, labelY);
     });
   }, [predictions, scaleX, scaleY]);
+
+  // Load background image when backgroundImageSrc changes
+  useEffect(() => {
+    if (backgroundImageSrc) {
+      const img = new Image();
+      img.onload = () => {
+        imageRef.current = img;
+        // Trigger a redraw when image loads
+        drawCanvas();
+      };
+      img.onerror = () => {
+        console.error("Failed to load background image:", backgroundImageSrc);
+        imageRef.current = null;
+      };
+      img.src = backgroundImageSrc;
+    } else {
+      imageRef.current = null;
+    }
+  }, [backgroundImageSrc, drawCanvas]);
+
+  // Redraw canvas when predictions change
+  useEffect(() => {
+    drawCanvas();
+  }, [drawCanvas]);
 
   return (
     <div className="border border-gray-300 p-4 rounded-lg w-full shadow-md">
