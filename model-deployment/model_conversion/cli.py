@@ -148,7 +148,7 @@ def convert_yolo(
 
 @cli.command()
 @click.argument("onnx-path", type=click.Path(exists=True, path_type=Path), callback=validate_path_exists)
-@click.argument("espdl-path", type=click.Path(exists=True, path_type=Path), callback=validate_path_exists)
+@click.argument("espdl-path", type=click.Path(exists=False, path_type=Path))
 @click.argument("calib-dataset-path", type=click.Path(exists=True, path_type=Path), callback=validate_path_exists)
 @click.argument("mixed-precision", type=click.BOOL, default=False)
 @click.option("--calib-steps", type=click.IntRange(min=8), default=8, help="Number of calibration steps")

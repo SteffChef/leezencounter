@@ -55,11 +55,11 @@ packages = ["model_conversion"]
 [tool.poe.tasks]
 _clean_docs.script = "shutil:rmtree('docs/_build', ignore_errors=1)"
 
-[tool.poe.tasks.yolo-to-onnx]
+[tool.poe.tasks.yolo2onnx]
     help = "Converts an Ultralytics YOLO model to ONNX"
     cmd = "uv run python -m model_conversion.cli convert-yolo"
 
-[tool.poe.tasks.onnx-to-espdl]
+[tool.poe.tasks.onnx2espdl]
     help = "Converts an ONNX YOLO model to .espdl using PTQ"
     cmd = "uv run python -m model_conversion.cli quantize-onnx"
 

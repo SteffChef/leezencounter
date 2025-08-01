@@ -106,7 +106,6 @@ class OnnxQuantizer:
             skip_export=False,
             export_test_values=True,
             verbose=1,
-            # setting=DEFAULT_QUANT_SETTINGS,
         )
         return quantized_model
 
