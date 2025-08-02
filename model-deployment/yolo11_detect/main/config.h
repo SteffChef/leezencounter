@@ -1,59 +1,58 @@
 #ifndef _RADIOLIB_EX_LORAWAN_CONFIG_H
 #define _RADIOLIB_EX_LORAWAN_CONFIG_H
-
-#include <Arduino.h>
+ 
 #include <RadioLib.h>
-
+ 
 // first you have to set your radio model and pin configuration
 // this is provided just as a default example
 SX1262 radio = new Module(4, 1, 3, 2);
-
+ 
 // if you have RadioBoards (https://github.com/radiolib-org/RadioBoards)
 // and are using one of the supported boards, you can do the following:
 /*
 #define RADIO_BOARD_AUTO
 #include <RadioBoards.h>
-
+ 
 Radio radio = new RadioModule();
 */
-
+ 
 // how often to send an uplink - consider legal & FUP constraints - see notes
 const uint32_t uplinkIntervalSeconds = 1UL * 20UL;    // minutes x seconds
-
+ 
 // joinEUI - previous versions of LoRaWAN called this AppEUI
 // for development purposes you can use all zeros - see wiki for details
 #define RADIOLIB_LORAWAN_JOIN_EUI  0x0000000000000000
-
-// the Device EUI & two keys can be generated on the TTN console 
+ 
+// the Device EUI & two keys can be generated on the TTN console
 #ifndef RADIOLIB_LORAWAN_DEV_EUI   // Replace with your Device EUI
-#define RADIOLIB_LORAWAN_DEV_EUI   0x0000000000000000
+#define RADIOLIB_LORAWAN_DEV_EUI   0x70B3D57ED0071EC0
 #endif
-#ifndef RADIOLIB_LORAWAN_APP_KEY   // Replace with your App Key 
-#define RADIOLIB_LORAWAN_APP_KEY   0xAF, 0xEE, 0x9A, 0xEC, 0x69, 0xAF, 0xC5, 0xDA, 0xB8, 0x0E, 0x5A, 0x1C, 0x0B, 0xEC, 0xBE, 0x4D
+#ifndef RADIOLIB_LORAWAN_APP_KEY   // Replace with your App Key
+#define RADIOLIB_LORAWAN_APP_KEY   0x49, 0x31, 0xC6, 0xC5, 0x9C, 0xD3, 0x93, 0x17, 0xDC, 0x03, 0xFE, 0x7E, 0x99, 0xEA, 0xF4, 0x05
 #endif
 #ifndef RADIOLIB_LORAWAN_NWK_KEY   // Put your Nwk Key here
-#define RADIOLIB_LORAWAN_NWK_KEY   0x83, 0x5C, 0x87, 0x9C, 0xA2, 0xFE, 0xA2, 0x35, 0x76, 0x5B, 0x55, 0x64, 0x5B, 0x5F, 0xFB, 0x37
+#define RADIOLIB_LORAWAN_NWK_KEY   0x58, 0x2E, 0x71, 0xBC, 0x60, 0x4C, 0xD6, 0xB1, 0xFA, 0x6C, 0x1A, 0x97, 0xB7, 0x71, 0x2A, 0x34
 #endif
-
+ 
 // for the curious, the #ifndef blocks allow for automated testing &/or you can
 // put your EUI & keys in to your platformio.ini - see wiki for more tips
-
+ 
 // regional choices: EU868, US915, AU915, AS923, AS923_2, AS923_3, AS923_4, IN865, KR920, CN500
 const LoRaWANBand_t Region = EU868;
 const uint8_t subBand = 0;  // For US915, change this to 2, otherwise leave on 0
-
+ 
 // ============================================================================
 // Below is to support the sketch - only make changes if the notes say so ...
-
+ 
 // copy over the EUI's & keys in to the something that will not compile if incorrectly formatted
 uint64_t joinEUI =   RADIOLIB_LORAWAN_JOIN_EUI;
 uint64_t devEUI  =   RADIOLIB_LORAWAN_DEV_EUI;
 uint8_t appKey[] = { RADIOLIB_LORAWAN_APP_KEY };
 uint8_t nwkKey[] = { RADIOLIB_LORAWAN_NWK_KEY };
-
+ 
 // create the LoRaWAN node
 LoRaWANNode node(&radio, &Region, subBand);
-
+ 
 // result code to text - these are error codes that can be raised when using LoRaWAN
 // however, RadioLib has many more - see https://jgromes.github.io/RadioLib/group__status__codes.html for a complete list
 String stateDecode(const int16_t result) {
@@ -79,7 +78,7 @@ String stateDecode(const int16_t result) {
   case RADIOLIB_ERR_INVALID_OUTPUT_POWER:
     return "ERR_INVALID_OUTPUT_POWER";
   case RADIOLIB_ERR_NETWORK_NOT_JOINED:
-	  return "RADIOLIB_ERR_NETWORK_NOT_JOINED";
+    return "RADIOLIB_ERR_NETWORK_NOT_JOINED";
   case RADIOLIB_ERR_DOWNLINK_MALFORMED:
     return "RADIOLIB_ERR_DOWNLINK_MALFORMED";
   case RADIOLIB_ERR_INVALID_REVISION:
@@ -115,7 +114,7 @@ String stateDecode(const int16_t result) {
   }
   return "See https://jgromes.github.io/RadioLib/group__status__codes.html";
 }
-
+ 
 // helper function to display any issues
 void debug(bool failed, const __FlashStringHelper* message, int state, bool halt) {
   if(failed) {
@@ -128,7 +127,7 @@ void debug(bool failed, const __FlashStringHelper* message, int state, bool halt
     while(halt) { delay(1); }
   }
 }
-
+ 
 // helper function to display a byte array
 void arrayDump(uint8_t *buffer, uint16_t len) {
   for(uint16_t c = 0; c < len; c++) {
@@ -138,5 +137,5 @@ void arrayDump(uint8_t *buffer, uint16_t len) {
   }
   Serial.println();
 }
-
+ 
 #endif

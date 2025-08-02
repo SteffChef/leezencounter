@@ -31,25 +31,25 @@ extern "C" void app_main(void)
     Initialize LoRaWAN node
     -------------------------------------------------------------------
     */
-    ESP_LOGI(TAG, "Initializing LoRaWAN node...");
-    int16_t state = radio.begin();
-    if (state != RADIOLIB_ERR_NONE) {
-        ESP_LOGE(TAG, "LoRaWAN node initialization failed with error: %d", (int)state);
-    }
+    // ESP_LOGI(TAG, "Initializing LoRaWAN node...");
+    // int16_t state = radio.begin();
+    // if (state != RADIOLIB_ERR_NONE) {
+    //     ESP_LOGE(TAG, "LoRaWAN node initialization failed with error: %d", (int)state);
+    // }
 
-    state = node.beginOTAA(joinEUI, devEUI, appKey, appKey);
-    if (state != RADIOLIB_ERR_NONE) {
-        ESP_LOGE(TAG, "LoRaWAN node beginOTAA failed with error: %d", (int)state);
-    } else {
-        ESP_LOGI(TAG, "Joining LoRaWAN network");
-    }
+    // state = node.beginOTAA(joinEUI, devEUI, appKey, appKey);
+    // if (state != RADIOLIB_ERR_NONE) {
+    //     ESP_LOGE(TAG, "LoRaWAN node beginOTAA failed with error: %d", (int)state);
+    // } else {
+    //     ESP_LOGI(TAG, "Joining LoRaWAN network");
+    // }
 
-    state = node.activateOTAA();
-    if (state != RADIOLIB_LORAWAN_NEW_SESSION) {
-        ESP_LOGE(TAG, "Joining LoRaWAN network failed");
-    } else {
-        ESP_LOGI(TAG, "LoRaWAN network joined successfully");
-    }
+    // state = node.activateOTAA();
+    // if (state != RADIOLIB_LORAWAN_NEW_SESSION) {
+    //     ESP_LOGE(TAG, "Joining LoRaWAN network failed");
+    // } else {
+    //     ESP_LOGI(TAG, "LoRaWAN network joined successfully");
+    // }
 
 
     // Initialize SD card
@@ -62,6 +62,26 @@ extern "C" void app_main(void)
 
     while (true) {
         log_psram("Start of loop");
+
+        ESP_LOGI(TAG, "Initializing LoRaWAN node...");
+        int16_t state = radio.begin();
+        if (state != RADIOLIB_ERR_NONE) {
+            ESP_LOGE(TAG, "LoRaWAN node initialization failed with error: %d", (int)state);
+        }
+
+        state = node.beginOTAA(joinEUI, devEUI, appKey, appKey);
+        if (state != RADIOLIB_ERR_NONE) {
+            ESP_LOGE(TAG, "LoRaWAN node beginOTAA failed with error: %d", (int)state);
+        } else {
+            ESP_LOGI(TAG, "Joining LoRaWAN network");
+        }
+
+        state = node.activateOTAA();
+        if (state != RADIOLIB_LORAWAN_NEW_SESSION) {
+            ESP_LOGE(TAG, "Joining LoRaWAN network failed");
+        } else {
+            ESP_LOGI(TAG, "LoRaWAN network joined successfully");
+        }
 
         COCODetect *detect = new COCODetect();
 
@@ -161,18 +181,20 @@ extern "C" void app_main(void)
         uplinkPayload[1] = highByte(value2);   // See notes for high/lowByte functions
         uplinkPayload[2] = lowByte(value2);
 
+        ESP_LOGI(TAG, "Sending uplink payload: %02X %02X %02X", uplinkPayload[0], uplinkPayload[1], uplinkPayload[2]);
+
         // Perform an uplink
-        int16_t state = node.sendReceive(uplinkPayload, sizeof(uplinkPayload));
-        if (state < RADIOLIB_ERR_NONE) {
-            ESP_LOGE(TAG, "Error in sendReceive: %d", state);
-        }
-        // Check if a downlink was received 
-        // (state 0 = no downlink, state 1/2 = downlink in window Rx1/Rx2)
-        if(state > 0) {
-            ESP_LOGI(TAG, "Received a downlink");
-        } else {
-            ESP_LOGI(TAG, "No downlink received");
-        }
+        // int16_t state = node.sendReceive(uplinkPayload, sizeof(uplinkPayload));
+        // if (state < RADIOLIB_ERR_NONE) {
+        //     ESP_LOGE(TAG, "Error in sendReceive: %d", state);
+        // }
+        // // Check if a downlink was received 
+        // // (state 0 = no downlink, state 1/2 = downlink in window Rx1/Rx2)
+        // if(state > 0) {
+        //     ESP_LOGI(TAG, "Received a downlink");
+        // } else {
+        //     ESP_LOGI(TAG, "No downlink received");
+        // }
 
         // Only return the frame buffer after all operations are done to avoid issues with accessing the frame buffer after it has been returned
         esp_camera_fb_return(fb);
