@@ -150,6 +150,30 @@ extern "C" void app_main(void)
         -------------------------------------------------------------------
         */
 
+        // This is the place to gather the sensor inputs
+        // Instead of reading any real sensor, we just generate some random numbers as example
+        uint8_t value1 = radio.random(100);
+        uint16_t value2 = radio.random(2000);
+
+        // Build payload byte array
+        uint8_t uplinkPayload[3];
+        uplinkPayload[0] = value1;
+        uplinkPayload[1] = highByte(value2);   // See notes for high/lowByte functions
+        uplinkPayload[2] = lowByte(value2);
+
+        // Perform an uplink
+        int16_t state = node.sendReceive(uplinkPayload, sizeof(uplinkPayload));
+        if (state < RADIOLIB_ERR_NONE) {
+            ESP_LOGE(TAG, "Error in sendReceive: %d", state);
+        }
+        // Check if a downlink was received 
+        // (state 0 = no downlink, state 1/2 = downlink in window Rx1/Rx2)
+        if(state > 0) {
+            ESP_LOGI(TAG, "Received a downlink");
+        } else {
+            ESP_LOGI(TAG, "No downlink received");
+        }
+
         // Only return the frame buffer after all operations are done to avoid issues with accessing the frame buffer after it has been returned
         esp_camera_fb_return(fb);
 
