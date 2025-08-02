@@ -575,7 +575,8 @@ direct_dependencies:
 - espressif/arduino-esp32
 - espressif/coco_detect
 - espressif/esp32_s3_eye_noglib
+- idf
 - jgromes/radiolib
-manifest_hash: efd43681201b4d82ffe5aa4e3e12164edbceef1c60d0f14f62f47f5c0b96cf58
+manifest_hash: bc87b7490be5676fe73428a56ddeaa0a652cae94f0dee4ca4c67954bbbdf2acf
 target: esp32s3
 version: 2.0.0

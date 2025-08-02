@@ -3,7 +3,9 @@
 #include "camera_capture.hpp"
 #include "esp_camera.h"
 #include "sd_handling.h"
-#include "Arduino.h"
+#include <Arduino.h>
+#include <RadioLib.h>
+#include "config.h"
 
 
 const char *TAG = "yolo_main";
@@ -22,26 +24,33 @@ extern "C" void app_main(void)
 
     // Init Arduino
     initArduino();
+    ESP_LOGI(TAG, "Arduino initialized, PSRAM free: %u bytes", log_psram("After Arduino init"));
 
-    Serial.begin(115200);
-    while(!Serial){
-        delay(5000);  // Give time to switch to the serial monitor
-        Serial.println(F("\nSetup ... "));
-
-        Serial.println(F("Initialise the radio"));
-        int16_t state = radio.begin();
-        debug(state != RADIOLIB_ERR_NONE, F("Initialise radio failed"), state, true);
-
-        // Setup the OTAA session information
-        state = node.beginOTAA(joinEUI, devEUI, appKey, appKey);
-        debug(state != RADIOLIB_ERR_NONE, F("Initialise node failed"), state, true);
-
-        Serial.println(F("Join ('login') the LoRaWAN Network"));
-        state = node.activateOTAA();
-        debug(state != RADIOLIB_LORAWAN_NEW_SESSION, F("Join failed"), state, true);
-
-        Serial.println(F("Ready!\n"));
+    /*
+    -------------------------------------------------------------------
+    Initialize LoRaWAN node
+    -------------------------------------------------------------------
+    */
+    ESP_LOGI(TAG, "Initializing LoRaWAN node...");
+    int16_t state = radio.begin();
+    if (state != RADIOLIB_ERR_NONE) {
+        ESP_LOGE(TAG, "LoRaWAN node initialization failed with error: %d", (int)state);
     }
+
+    state = node.beginOTAA(joinEUI, devEUI, appKey, appKey);
+    if (state != RADIOLIB_ERR_NONE) {
+        ESP_LOGE(TAG, "LoRaWAN node beginOTAA failed with error: %d", (int)state);
+    } else {
+        ESP_LOGI(TAG, "Joining LoRaWAN network");
+    }
+
+    state = node.activateOTAA();
+    if (state != RADIOLIB_LORAWAN_NEW_SESSION) {
+        ESP_LOGE(TAG, "Joining LoRaWAN network failed");
+    } else {
+        ESP_LOGI(TAG, "LoRaWAN network joined successfully");
+    }
+
 
     // Initialize SD card
     esp_err_t sd_ret = init_sd_card();
@@ -140,36 +149,6 @@ extern "C" void app_main(void)
         Send data over LoRaWAN
         -------------------------------------------------------------------
         */
-
-        // This is the place to gather the sensor inputs
-        // Instead of reading any real sensor, we just generate some random numbers as example
-        uint8_t value1 = radio.random(100);
-        uint16_t value2 = radio.random(2000);
-
-        // Build payload byte array
-        uint8_t uplinkPayload[3];
-        uplinkPayload[0] = value1;
-        uplinkPayload[1] = highByte(value2);   // See notes for high/lowByte functions
-        uplinkPayload[2] = lowByte(value2);
-        
-        // Perform an uplink
-        int16_t state = node.sendReceive(uplinkPayload, sizeof(uplinkPayload));    
-        debug(state < RADIOLIB_ERR_NONE, F("Error in sendReceive"), state, false);
-
-        // Check if a downlink was received 
-        // (state 0 = no downlink, state 1/2 = downlink in window Rx1/Rx2)
-        if(state > 0) {
-            Serial.println(F("Received a downlink"));
-        } else {
-            Serial.println(F("No downlink received"));
-        }
-
-        Serial.print(F("Next uplink in "));
-        Serial.print(uplinkIntervalSeconds);
-        Serial.println(F(" seconds\n"));
-        
-        // Wait until next uplink - observing legal & TTN FUP constraints
-        delay(uplinkIntervalSeconds * 1000UL);  // delay needs milli-seconds
 
         // Only return the frame buffer after all operations are done to avoid issues with accessing the frame buffer after it has been returned
         esp_camera_fb_return(fb);
