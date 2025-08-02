@@ -40,15 +40,15 @@ export default function Home() {
     {
       title: "How it works",
       description:
-        "This section highlights the features of Leezencounter, including real-time monitoring and analytics.",
-      imageSrc: "/assets/hiltrup.jpeg",
+        "We utilize a fine-tuned machine learning model to predict .",
+      imageSrc: "/assets/roxel.webp",
       altText: "Section 2 Image",
       reverse: true,
     },
     {
       title: "Who we are",
       description:
-        "This section provides insights into the architecture of Leezencounter.",
+        "We are a masters projectseminar group from the University of Münster. The goal of our seminar is to create a proof of concept for a Leezenbox monitoring system using TinyAIoT.",
       imageSrc: "/assets/hiltrup.jpeg",
       altText: "Section 3 Image",
       reverse: false,

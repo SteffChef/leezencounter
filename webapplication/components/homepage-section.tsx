@@ -24,7 +24,7 @@ const HomePageSection: React.FC<HomePageSectionProps> = ({
         <Separator orientation="vertical" className="b-2" />
       </div>
       <div
-        className={`flex max-w-lg lg:max-w-full flex-col lg:flex-row gap-4 ${
+        className={`flex max-w-lg lg:max-w-full flex-col lg:flex-row gap-4 items-center ${
           reverse ? "lg:flex-row-reverse" : ""
         }`}
       >

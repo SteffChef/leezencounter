@@ -44,7 +44,12 @@ const LeezenboxByIdPage = async ({ params }: LeezenboxByIdPageProps) => {
           className="w-full aspect-[16/3] lg:aspect-[8/1] object-cover rounded-lg shadow-md "
         />
         <h1 className="absolute bottom-4 left-4 text-white text-xl sm:text-2xl md:text-3xl font-bold drop-shadow-lg">
-          {leezenbox?.name || "Leezenbox"}
+          {leezenbox?.name || "Leezenbox"} <br />
+          <p className="text-sm sm:text-base md:text-lg drop-shadow-lg">
+            {leezenbox?.address || "Address not available"} <br />
+            {leezenbox?.postcode ? `${leezenbox.postcode} ` : ""}
+            {leezenbox?.city || "City not available"}
+          </p>
         </h1>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">

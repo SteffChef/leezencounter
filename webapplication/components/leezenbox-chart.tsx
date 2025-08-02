@@ -82,52 +82,124 @@ export function LeezenboxChart({ data }: LeezenboxChartProps) {
   const handleDataPointClick = (chartData: ChartClickEvent) => {
     if (chartData && chartData.activePayload && chartData.activePayload[0]) {
       const clickedTimestamp = chartData.activePayload[0].payload.timestamp;
-      const originalDataPoint = data.find(
-        (dp: DataPoint) => dp.timestamp === clickedTimestamp
-      );
+      const clickedTime = new Date(clickedTimestamp);
 
-      if (originalDataPoint) {
-        setSelectedDataPoint(originalDataPoint);
+      // Determine interval length based on time range
+      let intervalMinutes: number;
+      switch (timeRange) {
+        case "24h":
+          intervalMinutes = 60;
+          break;
+        case "7d":
+          intervalMinutes = 4 * 60;
+          break;
+        case "30d":
+        case "3m":
+          intervalMinutes = 24 * 60;
+          break;
+        default:
+          intervalMinutes = 24 * 60;
+      }
+
+      const intervalMs = intervalMinutes * 60 * 1000;
+      const intervalEnd = new Date(clickedTime.getTime() + intervalMs);
+
+      // Find all data points within the clicked interval
+      const dataPointsInInterval = data.filter((dp: DataPoint) => {
+        const dpTime = new Date(dp.timestamp);
+        return dpTime >= clickedTime && dpTime < intervalEnd;
+      });
+
+      // If we have data points in this interval, show the first one or combine them
+      if (dataPointsInInterval.length > 0) {
+        // For simplicity, show the first data point, but you could aggregate them
+        setSelectedDataPoint(dataPointsInInterval[0]);
         setIsModalOpen(true);
       }
     }
   };
 
-  const filteredData = data.filter((item) => {
-    const date = new Date(item.timestamp);
+  // Generate complete time series data with zeros for missing periods
+  const generateCompleteTimeSeries = () => {
     const referenceDate = new Date();
     const startDate = new Date(referenceDate);
+    const endDate = new Date(referenceDate);
+
+    let intervalMinutes: number;
 
     switch (timeRange) {
       case "24h":
         startDate.setHours(startDate.getHours() - 24);
+        intervalMinutes = 60; // 1 hour intervals for 24h view
         break;
       case "7d":
         startDate.setDate(startDate.getDate() - 7);
+        intervalMinutes = 4 * 60; // 4 hour intervals for 7d view
         break;
       case "30d":
         startDate.setDate(startDate.getDate() - 30);
+        intervalMinutes = 24 * 60; // 1 day intervals for 30d view
         break;
       case "3m":
         startDate.setMonth(startDate.getMonth() - 3);
+        intervalMinutes = 24 * 60; // 1 day intervals for 3m view
         break;
       default:
         startDate.setMonth(startDate.getMonth() - 3);
+        intervalMinutes = 24 * 60;
     }
 
-    return date >= startDate;
-  });
+    // Filter data to the time range first
+    const filteredData = data.filter((item) => {
+      const itemDate = new Date(item.timestamp);
+      return itemDate >= startDate && itemDate <= endDate;
+    });
 
-  const adjustedData = filteredData.map((item) => ({
-    timestamp: item.timestamp,
-    bicycles: item.predictions.filter((p) => p.category === 1).length || 0,
-    saddles: item.predictions.filter((p) => p.category === 2).length || 0,
-  }));
+    // Generate complete time series with regular intervals
+    const timeSeriesData = [];
+    const currentTime = new Date(startDate);
+    const intervalMs = intervalMinutes * 60 * 1000;
 
-  // Sort data by timestamp to ensure proper ordering
-  const sortedData = adjustedData.sort(
-    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-  );
+    while (currentTime <= endDate) {
+      const intervalStart = new Date(currentTime);
+      const intervalEnd = new Date(currentTime.getTime() + intervalMs);
+
+      // Find all data points that fall within this interval
+      const dataPointsInInterval = filteredData.filter((item) => {
+        const itemDate = new Date(item.timestamp);
+        return itemDate >= intervalStart && itemDate < intervalEnd;
+      });
+
+      // Calculate average bicycles and saddles per observation in this interval
+      let avgBicycles = 0;
+      let avgSaddles = 0;
+
+      if (dataPointsInInterval.length > 0) {
+        const totalBicycles = dataPointsInInterval.reduce((sum, item) => {
+          return sum + item.predictions.filter((p) => p.category === 1).length;
+        }, 0);
+
+        const totalSaddles = dataPointsInInterval.reduce((sum, item) => {
+          return sum + item.predictions.filter((p) => p.category === 2).length;
+        }, 0);
+
+        avgBicycles = Math.round(totalBicycles / dataPointsInInterval.length);
+        avgSaddles = Math.round(totalSaddles / dataPointsInInterval.length);
+      }
+
+      timeSeriesData.push({
+        timestamp: intervalStart.toISOString(),
+        bicycles: avgBicycles,
+        saddles: avgSaddles,
+      });
+
+      currentTime.setMinutes(currentTime.getMinutes() + intervalMinutes);
+    }
+
+    return timeSeriesData;
+  };
+
+  const sortedData = generateCompleteTimeSeries();
 
   // Helper function to format X-axis ticks based on time range
   const formatXAxisTick = (value: string) => {
