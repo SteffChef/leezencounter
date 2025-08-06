@@ -38,6 +38,8 @@ set_property(TARGET RadioLib PROPERTY CXX_STANDARD 20)
 
 # enable most warnings
 target_compile_options(RadioLib PRIVATE -Wall -Wextra -Wpedantic -Wdouble-promotion)
+# enable arduino build
+target_compile_definitions(${COMPONENT_TARGET} PRIVATE "-DARDUINO=10607")
 
 include(GNUInstallDirs)
 

@@ -4,6 +4,19 @@
 #include <stdio.h>
 #include <string.h>
 
+// testing if ARDUINO macro is defined
+#ifndef ARDUINO
+#warning "ARDUINO is NOT defined"
+#else
+#warning "ARDUINO is defined with value " 
+#endif
+
+#define STR_HELPER(x) #x
+#define STR(x) STR_HELPER(x)
+
+#pragma message "The value of ARDUINO: " STR(ARDUINO)
+
+
 #if defined(RADIOLIB_BUILD_ARDUINO)
 #include "hal/Arduino/ArduinoHal.h"
 

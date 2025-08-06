@@ -7,6 +7,7 @@ set(requires
     esp32-camera
     sdmmc
     fatfs
+    arduino
 )
 
 if (IDF_TARGET STREQUAL "esp32s3")
