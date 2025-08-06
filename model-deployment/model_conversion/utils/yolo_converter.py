@@ -191,8 +191,11 @@ class YoloConverter:
 
         # export YOLO model from export config
         export_path = Path(model.export(**self.export_config, format=self._format))
+
+        destination_file = onnx_export_path / export_path.name # overwriting behavior is intended
+
         # move .onnx model to provided export path
-        shutil.move(export_path, onnx_export_path)
+        shutil.move(str(export_path), str(destination_file))
 
     @classmethod
     def from_config(cls, yml_config: Path | str) -> "YoloConverter":

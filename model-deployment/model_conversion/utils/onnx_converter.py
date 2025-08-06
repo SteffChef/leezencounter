@@ -8,7 +8,7 @@ from ppq.api import espdl_quantize_onnx, get_target_platform
 from torch.utils.data import DataLoader
 
 from model_conversion.core.constants import TARGET_SOC
-from model_conversion.utils import CalibrationDataset
+from model_conversion.utils.utils import CalibrationDataset
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
