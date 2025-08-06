@@ -9,6 +9,25 @@ config ARDUINO_VARIANT
         Specifying a variant name different from the target enables additional
         customization, for example the definition of GPIO pins.
 
+config ARDUINO
+    int "Enable Arduino framework"
+    default 10607
+    help 
+        Enabling this option will add the Arduino framework to the project.
+        It will also enable the Arduino core, which provides the basic
+        functionality for Arduino applications, such as setup() and loop()
+        functions, and the Arduino API.
+
+config RADIOLIB_VERBOSE_ASSERT
+    int "RadioLib debugging"
+    default 1
+    help 
+        Enabling this option will add RadioLib debugging to the project.
+        It will also enable the RadioLib verbose assert, which provides
+        additional information about errors in RadioLib operations.
+        This is useful for debugging RadioLib applications and understanding
+        the behavior of the library.
+
 config ENABLE_ARDUINO_DEPENDS
     bool
     select LWIP_SO_RCVBUF
