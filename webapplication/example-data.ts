@@ -93,7 +93,7 @@ function generateExampleDataPoints(): DataPoint[] {
   const leezenboxIds = [1, 2, 3, 4, 5];
 
   // Generate data for last 24 hours, one entry per hour
-  for (let hoursAgo = 23; hoursAgo >= 0; hoursAgo--) {
+  for (let hoursAgo = 719; hoursAgo >= 0; hoursAgo--) {
     const timestamp = new Date(now.getTime() - hoursAgo * 60 * 60 * 1000);
     // Round to the hour for consistency
     timestamp.setMinutes(0, 0, 0);

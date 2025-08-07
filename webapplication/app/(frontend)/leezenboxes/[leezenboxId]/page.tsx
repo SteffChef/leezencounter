@@ -4,6 +4,8 @@ import { getDataPointsByLeezenboxId } from "@/example-data";
 import { LeezenboxChart } from "@/components/leezenbox-chart";
 import LeezenboxStatCard from "@/components/leezenbox-stat-card";
 import { getLeezenboxById } from "@/actions/get-leezenboxs";
+import { Separator } from "@/components/ui/separator";
+import DeleteLeezenboxButton from "./components/delete-leezenbox-button";
 
 interface LeezenboxByIdPageProps {
   params: Promise<{
@@ -52,6 +54,7 @@ const LeezenboxByIdPage = async ({ params }: LeezenboxByIdPageProps) => {
           </p>
         </h1>
       </div>
+      <LeezenboxChart data={data} />
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         <LeezenboxStatCard
           description="Average Occupancy"
@@ -82,7 +85,11 @@ const LeezenboxByIdPage = async ({ params }: LeezenboxByIdPageProps) => {
         </LeezenboxStatCard>
         <LeezenboxStatCard title="Placeholder..."></LeezenboxStatCard>
       </div>
-      <LeezenboxChart data={data} />
+      <Separator className="my-4" />
+      <h2 className="text-xl font-bold text-red-500">Danger Zone</h2>
+      <div>
+        <DeleteLeezenboxButton leezenboxId={leezenboxIdNumber} />
+      </div>
     </div>
   );
 };
