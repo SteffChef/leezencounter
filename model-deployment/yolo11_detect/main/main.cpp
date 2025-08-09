@@ -3,9 +3,14 @@
 #include "camera_capture.hpp"
 #include "esp_camera.h"
 #include "sd_handling.h"
-#include <Arduino.h>
-#include <RadioLib.h>
-#include "config.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "esp_log.h"
+#include "BleClient.h"
+#include <string>
+#include <vector>
+#include <time.h>
+#include "cJSON.h"
 
 
 const char *TAG = "yolo_main";
@@ -17,41 +22,100 @@ static size_t log_psram(const char *label)
     return free_psram;
 }
 
+/**
+ * @brief Creates a JSON payload string from detection results.
+ *
+ * @param detect_results A vector containing the results from the model.
+ * @param confidence_threshold The confidence threshold to filter results.
+ * @return A std::string containing the formatted JSON payload.
+ */
+std::string create_json_payload(const std::vector<detection_result_t>& detect_results, float confidence_threshold) {
+    cJSON *root = cJSON_CreateObject();
+    if (root == NULL) {
+        ESP_LOGE(TAG, "Failed to create cJSON root object.");
+        return "";
+    }
+
+    // 1. Add static and timestamp information
+    cJSON_AddStringToObject(root, "device_id", "cam-01");
+    cJSON_AddStringToObject(root, "location", "Mecklenbeck");
+    cJSON_AddNumberToObject(root, "confidence_threshold", confidence_threshold);
+
+    // Generate ISO 8601 timestamp
+    char time_buf[sizeof("2025-07-08T16:23:12Z")];
+    time_t now;
+    time(&now);
+    strftime(time_buf, sizeof(time_buf), "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
+    cJSON_AddStringToObject(root, "timestamp", time_buf);
+
+
+    // 2. Create the predictions array
+    cJSON *predictions = cJSON_CreateArray();
+    if (predictions == NULL) {
+        ESP_LOGE(TAG, "Failed to create cJSON predictions array.");
+        cJSON_Delete(root);
+        return "";
+    }
+    cJSON_AddItemToObject(root, "predictions", predictions);
+
+    int total_detected = 0;
+    for (const auto& res : detect_results) {
+        if (res.score >= confidence_threshold) {
+            total_detected++;
+            cJSON *pred_obj = cJSON_CreateObject();
+            cJSON_AddNumberToObject(pred_obj, "category", res.category);
+            cJSON_AddNumberToObject(pred_obj, "confidence", res.score);
+
+            cJSON *bbox = cJSON_CreateArray();
+            cJSON_AddItemToArray(bbox, cJSON_CreateNumber(res.box[0]));
+            cJSON_AddItemToArray(bbox, cJSON_CreateNumber(res.box[1]));
+            cJSON_AddItemToArray(bbox, cJSON_CreateNumber(res.box[2]));
+            cJSON_AddItemToArray(bbox, cJSON_CreateNumber(res.box[3]));
+            cJSON_AddItemToObject(pred_obj, "bbox", bbox);
+
+            cJSON_AddItemToArray(predictions, pred_obj);
+        }
+    }
+
+    // 3. Add the total count
+    cJSON_AddNumberToObject(root, "total_detected", total_detected);
+
+    // 4. Convert the cJSON object to a string
+    char *json_string_ptr = cJSON_PrintUnformatted(root);
+    std::string json_payload(json_string_ptr);
+
+    // 5. Clean up
+    cJSON_Delete(root);
+    free(json_string_ptr);
+
+    return json_payload;
+}
+
+
+// create BLE client instance
+BleClient ble_client;
 
 extern "C" void app_main(void)
 {
     const float confidence_threshold = 0.1;
 
-    // Init Arduino
-    initArduino();
-    ESP_LOGI(TAG, "Arduino initialized, PSRAM free: %u bytes", log_psram("After Arduino init"));
-
     /*
-    -------------------------------------------------------------------
-    Initialize LoRaWAN node
-    -------------------------------------------------------------------
+    -----------------------------
+    BLE Client connect to server
+    -----------------------------
     */
 
-    ESP_LOGI(TAG, "Initializing LoRaWAN node...");
-    int16_t state = radio.begin();
-    if (state != RADIOLIB_ERR_NONE) {
-        ESP_LOGE(TAG, "LoRaWAN node initialization failed with error: %d", (int)state);
+    ble_client.connect_to_server();
+    ESP_LOGI(TAG, "Waiting for BLE connection...");
+    vTaskDelay(pdMS_TO_TICKS(3000)); // Wait 3 seconds for connection to establish
+
+    // Wait for the BLE client to connect
+    while (!ble_client.is_connected()) {
+        ESP_LOGW(TAG, "Not connected. Waiting to reconnect...");
+        vTaskDelay(pdMS_TO_TICKS(5000)); // Wait 5 seconds before checking again
     }
 
-    state = node.beginOTAA(joinEUI, devEUI, appKey, appKey);
-    if (state != RADIOLIB_ERR_NONE) {
-        ESP_LOGE(TAG, "LoRaWAN node beginOTAA failed with error: %d", (int)state);
-    } else {
-        ESP_LOGI(TAG, "Joining LoRaWAN network");
-    }
-
-    state = node.activateOTAA();
-    if (state != RADIOLIB_LORAWAN_NEW_SESSION) {
-        ESP_LOGE(TAG, "Joining LoRaWAN network failed");
-    } else {
-        ESP_LOGI(TAG, "LoRaWAN network joined successfully");
-    }
-
+    ESP_LOGI(TAG, "BLE client connected successfully");
 
     // Initialize SD card
     esp_err_t sd_ret = init_sd_card();
@@ -146,35 +210,22 @@ extern "C" void app_main(void)
         }
 
         /*
-        -------------------------------------------------------------------
-        Send data over LoRaWAN
-        -------------------------------------------------------------------
+        ----------------------------------------------
+        BLE client sending model predictions to server
+        ----------------------------------------------
         */
 
-        // This is the place to gather the sensor inputs
-        // Instead of reading any real sensor, we just generate some random numbers as example
-        uint8_t value1 = radio.random(100);
-        uint16_t value2 = radio.random(2000);
+        // Check if the BLE client is fully connected and ready
+        if (ble_client.is_connected()) {
+            // Create the JSON payload from the detection results
+            std::string payload = create_json_payload(detect_results, confidence_threshold);
 
-        // Build payload byte array
-        uint8_t uplinkPayload[3];
-        uplinkPayload[0] = value1;
-        uplinkPayload[1] = highByte(value2);   // See notes for high/lowByte functions
-        uplinkPayload[2] = lowByte(value2);
-
-        ESP_LOGI(TAG, "Sending uplink payload: %02X %02X %02X", uplinkPayload[0], uplinkPayload[1], uplinkPayload[2]);
-
-        // Perform an uplink
-        int16_t state = node.sendReceive(uplinkPayload, sizeof(uplinkPayload));
-        if (state < RADIOLIB_ERR_NONE) {
-            ESP_LOGE(TAG, "Error in sendReceive: %d", state);
-        }
-        // Check if a downlink was received 
-        // (state 0 = no downlink, state 1/2 = downlink in window Rx1/Rx2)
-        if(state > 0) {
-            ESP_LOGI(TAG, "Received a downlink");
+            if (!payload.empty()) {
+                ESP_LOGI(TAG, "Sending payload via BLE: %s", payload.c_str());
+                ble_client.send_data(payload);
+            }
         } else {
-            ESP_LOGI(TAG, "No downlink received");
+            ESP_LOGW(TAG, "BLE not connected. Skipping data send.");
         }
 
         // Only return the frame buffer after all operations are done to avoid issues with accessing the frame buffer after it has been returned

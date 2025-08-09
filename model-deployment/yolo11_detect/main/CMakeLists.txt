@@ -7,7 +7,7 @@ set(requires
     esp32-camera
     sdmmc
     fatfs
-    arduino
+    json
 )
 
 if (IDF_TARGET STREQUAL "esp32s3")
@@ -20,4 +20,4 @@ endif()
 
 set(embed_files     "bikes.jpg")
 
-idf_component_register(SRC_DIRS ${src_dirs} INCLUDE_DIRS ${include_dirs} REQUIRES ${requires} EMBED_FILES ${embed_files})
+idf_component_register(SRC_DIRS ${src_dirs} INCLUDE_DIRS ${include_dirs} REQUIRES ${requires} EMBED_FILES ${embed_files} PRIV_REQUIRES bt nvs_flash)
