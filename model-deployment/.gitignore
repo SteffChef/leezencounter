@@ -6,6 +6,10 @@ __pycache__/
 # C extensions
 *.so
 
+# Jupyter Notebooks
+*.ipynb_checkpoints
+*.ipynb
+
 # Distribution / packaging
 .Python
 build/
@@ -176,7 +180,20 @@ cython_debug/
 # Mac stuff
 **/.DS_Store
 
+# VS Code stuff
+.vscode/
+
 # dvc-tracked files and folders
 /data
 /models
 /datasets
+
+# images
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.bmp
+
+# txt files
+detections/*.txt

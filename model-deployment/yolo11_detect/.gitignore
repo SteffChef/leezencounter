@@ -1048,5 +1048,8 @@ dkms.conf
 build/
 managed_components/
 
+# sdkconfig
+sdkconfig
+
 # .vscode stuff
 .vscode/
