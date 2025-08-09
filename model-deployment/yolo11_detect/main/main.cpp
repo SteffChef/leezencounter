@@ -29,7 +29,7 @@ static size_t log_psram(const char *label)
  * @param confidence_threshold The confidence threshold to filter results.
  * @return A std::string containing the formatted JSON payload.
  */
-std::string create_json_payload(const std::vector<detection_result_t>& detect_results, float confidence_threshold) {
+std::string create_json_payload(const std::list<dl::detect::result_t>& detect_results, float confidence_threshold) {
     cJSON *root = cJSON_CreateObject();
     if (root == NULL) {
         ESP_LOGE(TAG, "Failed to create cJSON root object.");
@@ -39,14 +39,14 @@ std::string create_json_payload(const std::vector<detection_result_t>& detect_re
     // 1. Add static and timestamp information
     cJSON_AddStringToObject(root, "device_id", "cam-01");
     cJSON_AddStringToObject(root, "location", "Mecklenbeck");
-    cJSON_AddNumberToObject(root, "confidence_threshold", confidence_threshold);
+    // cJSON_AddNumberToObject(root, "confidence_threshold", confidence_threshold);
 
     // Generate ISO 8601 timestamp
     char time_buf[sizeof("2025-07-08T16:23:12Z")];
     time_t now;
     time(&now);
     strftime(time_buf, sizeof(time_buf), "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
-    cJSON_AddStringToObject(root, "timestamp", time_buf);
+    // cJSON_AddStringToObject(root, "timestamp", time_buf);
 
 
     // 2. Create the predictions array
@@ -64,7 +64,7 @@ std::string create_json_payload(const std::vector<detection_result_t>& detect_re
             total_detected++;
             cJSON *pred_obj = cJSON_CreateObject();
             cJSON_AddNumberToObject(pred_obj, "category", res.category);
-            cJSON_AddNumberToObject(pred_obj, "confidence", res.score);
+            // cJSON_AddNumberToObject(pred_obj, "confidence", res.score);
 
             cJSON *bbox = cJSON_CreateArray();
             cJSON_AddItemToArray(bbox, cJSON_CreateNumber(res.box[0]));
@@ -221,7 +221,7 @@ extern "C" void app_main(void)
             std::string payload = create_json_payload(detect_results, confidence_threshold);
 
             if (!payload.empty()) {
-                ESP_LOGI(TAG, "Sending payload via BLE: %s", payload.c_str());
+                ESP_LOGI(TAG, "Sending payload via BLE");
                 ble_client.send_data(payload);
             }
         } else {
