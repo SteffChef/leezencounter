@@ -1,3 +1,0 @@
-[submodule "model-deployment/yolo11_detect/components/EzLoRaWAN"]
-	path = model-deployment/yolo11_detect/components/EzLoRaWAN
-	url = https://github.com/rgot-org/EzLoRaWAN.git
