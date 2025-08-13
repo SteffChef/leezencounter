@@ -1,20 +1,7 @@
-// components/LeezenboxMap.tsx
-"use client"; // if using App Router
-
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { Leezenbox } from "@/types"; // adjust to your project
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "./ui/sheet";
-import { useState } from "react";
-import { Button } from "./ui/button";
-import { LinearChart } from "./linear-chart";
 import Link from "next/link";
 import { Search } from "lucide-react";
 
@@ -31,8 +18,6 @@ type Props = {
 };
 
 export default function LeezenboxMap({ data }: Props) {
-  const [selectedBox, setSelectedBox] = useState<Leezenbox | null>(null);
-
   return (
     <>
       <MapContainer
@@ -56,40 +41,18 @@ export default function LeezenboxMap({ data }: Props) {
               Lockers with power: {box.num_lockers_with_power}
               <br />
               <div className="flex justify-end w-full mt-2">
-                <Button
-                  className="cursor-pointer h-8"
-                  onClick={() => setSelectedBox(box)}
+                <Link
+                  href={`/leezenboxes/${box.id}`}
+                  className="flex items-center p-2 bg-accent dark:bg-gray-200 rounded-lg shadow-md hover:shadow-lg transition text-black"
                 >
-                  Details
-                </Button>
+                  <Search className="mr-2" />
+                  <span>More details</span>
+                </Link>
               </div>
             </Popup>
           </Marker>
         ))}
       </MapContainer>
-      <Sheet open={!!selectedBox} onOpenChange={() => setSelectedBox(null)}>
-        <SheetContent className=" sm:max-w-[50vw] max-w-[80vw] md:max-w-[40vw] lg:max-w-[30vw] p-4">
-          <SheetHeader>
-            <SheetTitle>{selectedBox?.name}</SheetTitle>
-            <SheetDescription>
-              {selectedBox?.address}, {selectedBox?.postcode}{" "}
-              {selectedBox?.city}
-              <br />
-              Lockers with power: {selectedBox?.num_lockers_with_power}
-            </SheetDescription>
-          </SheetHeader>
-          <div className="px-4">
-            <LinearChart />
-          </div>
-          <Link
-            href={`/leezenboxes/${selectedBox?.id}`}
-            className="flex items-center p-4 bg-accent rounded-lg shadow-md hover:shadow-lg transition ml-auto mt-auto"
-          >
-            <Search className="mr-2" />
-            <span>More details</span>
-          </Link>
-        </SheetContent>
-      </Sheet>
     </>
   );
 }

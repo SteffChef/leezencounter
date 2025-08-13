@@ -13,7 +13,7 @@ const BorderBox: React.FC<BorderBoxProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
 
-  // Original image dimensions
+  // Original image dimensions (4:3 aspect ratio)
   const ORIGINAL_WIDTH = 1600;
   const ORIGINAL_HEIGHT = 1200;
 
@@ -45,6 +45,7 @@ const BorderBox: React.FC<BorderBoxProps> = ({
     }
 
     // Draw bounding boxes
+    // Expected bbox format: [center_x, center_y, width, height] (YOLO format, normalized 0-1)
     predictions.forEach((prediction) => {
       const [x_center, y_center, width, height] = prediction.bbox;
 
@@ -65,12 +66,9 @@ const BorderBox: React.FC<BorderBoxProps> = ({
       const scaledHeight = pixelHeight * scaleY;
 
       // Set box style based on category or confidence
-      ctx.strokeStyle = prediction.category === 1 ? "#ef4444" : "#3b82f6"; // red for category 1, blue for others
+      ctx.strokeStyle = "#ef4444"; // red
       ctx.lineWidth = 2;
-      ctx.fillStyle =
-        prediction.category === 1
-          ? "rgba(239, 68, 68, 0.1)"
-          : "rgba(59, 130, 246, 0.1)";
+      ctx.fillStyle = "rgba(239, 68, 68, 0.1)";
 
       // Draw filled rectangle (background)
       ctx.fillRect(scaledX, scaledY, scaledWidth, scaledHeight);
@@ -79,11 +77,9 @@ const BorderBox: React.FC<BorderBoxProps> = ({
       ctx.strokeRect(scaledX, scaledY, scaledWidth, scaledHeight);
 
       // Draw label with confidence
-      ctx.fillStyle = prediction.category === 1 ? "#ef4444" : "#3b82f6";
+      ctx.fillStyle = "#ef4444";
       ctx.font = "12px Arial";
-      const label = `${prediction.category} (${(
-        prediction.confidence * 100
-      ).toFixed(1)}%)`;
+      const label = `${(prediction.confidence * 100).toFixed(1)}%)`;
       const labelY = scaledY > 20 ? scaledY - 5 : scaledY + scaledHeight + 15;
       ctx.fillText(label, scaledX, labelY);
     });

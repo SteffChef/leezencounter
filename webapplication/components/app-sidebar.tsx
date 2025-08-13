@@ -13,7 +13,7 @@ import {
   SidebarMenuSubItem,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
-import { Home, LayoutDashboard, MapIcon, Settings, Bike } from "lucide-react";
+import { Home, LayoutDashboard, MapIcon, Bike } from "lucide-react";
 import {
   Collapsible,
   CollapsibleContent,
@@ -73,11 +73,11 @@ export async function AppSidebar() {
       url: "/map",
       icon: MapIcon,
     },
-    {
-      title: "Settings",
-      url: "/settings",
-      icon: Settings,
-    },
+    // {
+    //   title: "Settings",
+    //   url: "/settings",
+    //   icon: Settings,
+    // },
   ];
 
   return (

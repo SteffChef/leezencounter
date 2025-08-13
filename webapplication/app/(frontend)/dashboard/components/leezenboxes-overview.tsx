@@ -29,12 +29,12 @@ const LeezenboxesOverview: React.FC<LeezenboxesOverviewProps> = async ({
           <span className="@[540px]/card:hidden">Selected period</span>
         </CardDescription>
       </CardHeader>
-      <CardFooter className="flex-col items-start gap-1.5 text-sm">
+      <CardFooter className="grid grid-cols-1 lg:grid-cols-2 gap-4 text-sm">
         {leezenboxes.map((leezenbox) => (
           <Link
             href={`/leezenboxes/${leezenbox.id}`}
             key={leezenbox.id}
-            className="w-full mb-2 px-4 py-2 rounded-lg shadow-sm hover:shadow-md transition dark:shadow-gray-800 hover:bg-sidebar border border-accent"
+            className="w-full px-4 py-2 rounded-lg shadow-sm hover:shadow-md transition dark:shadow-gray-800 hover:bg-sidebar border border-accent"
           >
             <h3 className="text-md font-medium">{leezenbox.name}</h3>
             <p className="text-sm text-gray-500">

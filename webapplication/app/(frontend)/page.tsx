@@ -1,6 +1,6 @@
 import HomePageSection from "@/components/homepage-section";
 import TiltedCard from "@/components/tilted-card";
-import { LayoutDashboard, MapIcon, Settings, Bike } from "lucide-react";
+import { LayoutDashboard, MapIcon, Bike } from "lucide-react";
 import Link from "next/link";
 import { Separator } from "@/components/ui/separator";
 import Image from "next/image";
@@ -21,36 +21,36 @@ export default function Home() {
       url: "/map",
       icon: MapIcon,
     },
-    {
-      title: "Settings",
-      url: "/settings",
-      icon: Settings,
-    },
+    // {
+    //   title: "Settings",
+    //   url: "/settings",
+    //   icon: Settings,
+    // },
   ];
 
   const homePageSections = [
     {
       title: "What we do",
       description:
-        "This is the first section of the homepage, showcasing the capabilities of Leezencounter.",
+        "This project develops a monitoring system for Leezenbox bicycle facilities using computer vision technology. The system automatically detects and counts bicycles to track occupancy levels, providing data that could help inform decisions about bike-sharing infrastructure usage patterns.",
       imageSrc: "/assets/hiltrup.jpeg",
-      altText: "Section 1 Image",
+      altText: "Leezenbox monitoring system",
       reverse: false,
     },
     {
       title: "How it works",
       description:
-        "This section highlights the features of Leezencounter, including real-time monitoring and analytics.",
-      imageSrc: "/assets/hiltrup.jpeg",
-      altText: "Section 2 Image",
+        "The system uses YOLO object detection models running on ESP32 microcontrollers to analyze images from Leezenbox locations. Data is processed locally and transmitted via LoRaWAN networks. This approach aims to balance detection accuracy with low power consumption and privacy considerations.",
+      imageSrc: "/assets/roxel.webp",
+      altText: "Object detection system components",
       reverse: true,
     },
     {
       title: "Who we are",
       description:
-        "This section provides insights into the architecture of Leezencounter.",
+        "We are master's students from the University of Münster working on this project as part of our studies in TinyAIoT applications. The goal is to explore how machine learning and IoT technologies can be applied to urban mobility challenges through a practical proof of concept.",
       imageSrc: "/assets/hiltrup.jpeg",
-      altText: "Section 3 Image",
+      altText: "University project team",
       reverse: false,
     },
   ];
@@ -64,8 +64,9 @@ export default function Home() {
             <b className="text-cyan-600">Leezencounter</b>
           </h1>
           <p className="text-secondary-foreground w-full">
-            This is a demo of the Leezencounter application, showcasing the
-            capabilities of TinyAIoT powered Leezenbox Monitoring.
+            A demonstration of AI-powered bicycle monitoring for Leezenbox
+            facilities. This system tracks occupancy patterns using computer
+            vision technology to provide insights into urban bike-sharing usage.
           </p>
         </div>
         <TiltedCard
@@ -90,7 +91,7 @@ export default function Home() {
           }
         />
       </div>
-      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 2xl:px-52">
+      <div className="grid grid-cols-2 lg:grid-cols-3  gap-4 2xl:px-52">
         {buttons.map((button) => (
           <Link
             key={button.title}

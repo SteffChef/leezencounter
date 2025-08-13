@@ -29,111 +29,104 @@ function generatePredictionsForHour(
   }
 
   for (let i = 0; i < detectionCount; i++) {
-    const baseX = random();
-    const baseY = random();
-    const width = 0.02 + random() * 0.08; // Width between 0.02 and 0.1
-    const height = 0.03 + random() * 0.1; // Height between 0.03 and 0.13
+    // Generate center coordinates and dimensions in normalized 0-1 space
+    const center_x = 0.1 + random() * 0.8; // Center X between 0.1 and 0.9
+    const center_y = 0.1 + random() * 0.8; // Center Y between 0.1 and 0.9
+    const width = 0.04 + random() * 0.12; // Width between 0.04 and 0.16 (realistic bike width)
+    const height = 0.06 + random() * 0.14; // Height between 0.06 and 0.2 (realistic bike height)
 
-    // Bike prediction (category 1)
+    // Ensure the bbox doesn't go outside the image bounds
+    const clampedCenterX = Math.max(
+      width / 2,
+      Math.min(1 - width / 2, center_x)
+    );
+    const clampedCenterY = Math.max(
+      height / 2,
+      Math.min(1 - height / 2, center_y)
+    );
+
+    // Generate bicycle prediction in YOLO format (center_x, center_y, width, height)
+    // All coordinates are normalized to 0-1 range
     predictions.push({
-      category: 1,
       bbox: [
-        Math.max(0, Math.min(1 - width, baseX)), // x
-        Math.max(0, Math.min(1 - height, baseY)), // y
-        width, // width
-        height, // height
+        clampedCenterX, // center_x (normalized 0-1)
+        clampedCenterY, // center_y (normalized 0-1)
+        width, // width (normalized 0-1)
+        height, // height (normalized 0-1)
       ],
-      confidence: 0.75 + random() * 0.2, // Confidence between 0.75 and 0.95
+      confidence: 0.7 + random() * 0.25, // Confidence between 0.7 and 0.95
     });
-
-    // Add corresponding saddle prediction (category 2) with high probability
-    if (random() > 0.2) {
-      // 80% chance of having a saddle
-      predictions.push({
-        category: 2,
-        bbox: [
-          Math.max(
-            0,
-            Math.min(1 - width * 0.8, baseX + (random() - 0.5) * 0.02)
-          ), // Slightly offset x
-          Math.max(0, Math.min(1 - height * 0.6, baseY - height * 0.3)), // Above the bike
-          width * 0.8, // Smaller width
-          height * 0.6, // Smaller height
-        ],
-        confidence: 0.7 + random() * 0.25, // Confidence between 0.7 and 0.95
-      });
-    }
-
-    // Occasionally add person detection (category 0) with lower probability
-    if (random() > 0.7) {
-      // 30% chance of having a person
-      predictions.push({
-        category: 0,
-        bbox: [
-          Math.max(
-            0,
-            Math.min(1 - width * 1.5, baseX + (random() - 0.5) * 0.1)
-          ), // More offset x
-          Math.max(0, Math.min(1 - height * 2, baseY - height * 0.5)), // Above bike/saddle
-          width * 1.5, // Larger width
-          height * 2, // Much larger height
-        ],
-        confidence: 0.65 + random() * 0.25, // Confidence between 0.65 and 0.9
-      });
-    }
   }
 
   return predictions;
 }
 
-// Generate dynamic example data for the last 24 hours (1 per hour)
-function generateExampleDataPoints(): DataPoint[] {
+// Generate dynamic example data for available leezenboxes
+function generateExampleDataPoints(leezenboxIds: number[] = []): DataPoint[] {
   const now = new Date();
   const dataPoints: DataPoint[] = [];
-  const leezenboxIds = [1, 2, 3, 4, 5];
 
-  // Generate data for last 24 hours, one entry per hour
-  for (let hoursAgo = 23; hoursAgo >= 0; hoursAgo--) {
+  // If no leezenbox IDs provided, use default ones for backward compatibility
+  const availableLeezenboxIds =
+    leezenboxIds.length > 0 ? leezenboxIds : [1, 2, 3, 4, 5];
+
+  // Generate data for last 30 days (720 hours), one entry per hour
+  for (let hoursAgo = 719; hoursAgo >= 0; hoursAgo--) {
     const timestamp = new Date(now.getTime() - hoursAgo * 60 * 60 * 1000);
     // Round to the hour for consistency
     timestamp.setMinutes(0, 0, 0);
 
     // Use the hour and day to determine which leezenbox(es) have data
     const hourSeed = timestamp.getHours() + timestamp.getDate();
-    const activeLeezenboxes = leezenboxIds.filter(
-      (_, index) => seededRandom(hourSeed + index) > 0.3 // 70% chance each box is active
+    const activeLeezenboxes = availableLeezenboxIds.filter(
+      (leezenboxId, index) => seededRandom(hourSeed + leezenboxId + index) > 0.3 // 70% chance each box is active
     );
 
-    // Ensure at least one leezenbox is active per hour
-    if (activeLeezenboxes.length === 0) {
-      activeLeezenboxes.push(leezenboxIds[hourSeed % leezenboxIds.length]);
+    // Ensure at least one leezenbox is active per hour if we have any leezenboxes
+    if (activeLeezenboxes.length === 0 && availableLeezenboxIds.length > 0) {
+      const selectedIndex =
+        Math.abs(Math.floor(seededRandom(hourSeed))) %
+        availableLeezenboxIds.length;
+      activeLeezenboxes.push(availableLeezenboxIds[selectedIndex]);
     }
 
     activeLeezenboxes.forEach((leezenboxId, index) => {
-      const id = (23 - hoursAgo) * 10 + index + 1; // Generate consistent IDs
+      // Generate unique IDs using timestamp and leezenbox ID
+      const uniqueId = Math.abs(
+        Math.floor(seededRandom(timestamp.getTime() + leezenboxId + index))
+      );
 
       dataPoints.push({
-        id,
+        id: uniqueId,
         leezenbox_id: leezenboxId,
-        timestamp: timestamp.toISOString(),
+        received_at: timestamp.toISOString(),
         predictions: generatePredictionsForHour(timestamp, leezenboxId),
       });
     });
   }
 
   return dataPoints.sort(
-    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    (a, b) =>
+      new Date(a.received_at).getTime() - new Date(b.received_at).getTime()
   );
 }
 
-// Export the dynamic data points
+// Export the dynamic data points (default backward compatibility)
 export const exampleDataPoints: DataPoint[] = generateExampleDataPoints();
+
+// Function to generate example data for specific leezenbox IDs
+export const generateExampleDataForLeezenboxes = (
+  leezenboxIds: number[]
+): DataPoint[] => {
+  return generateExampleDataPoints(leezenboxIds);
+};
 
 // Helper function to get data points for a specific leezenbox
 export const getDataPointsByLeezenboxId = (
-  leezenboxId: number
+  leezenboxId: number,
+  dataPoints: DataPoint[] = exampleDataPoints
 ): DataPoint[] => {
-  return exampleDataPoints.filter(
+  return dataPoints.filter(
     (dataPoint) => dataPoint.leezenbox_id === leezenboxId
   );
 };
@@ -141,38 +134,33 @@ export const getDataPointsByLeezenboxId = (
 // Helper function to get data points within a time range
 export const getDataPointsByTimeRange = (
   startTime: string,
-  endTime: string
+  endTime: string,
+  dataPoints: DataPoint[] = exampleDataPoints
 ): DataPoint[] => {
   const start = new Date(startTime);
   const end = new Date(endTime);
 
-  return exampleDataPoints.filter((dataPoint) => {
-    const timestamp = new Date(dataPoint.timestamp);
+  return dataPoints.filter((dataPoint) => {
+    const timestamp = new Date(dataPoint.received_at);
     return timestamp >= start && timestamp <= end;
   });
 };
 
 // Helper function to count total bikes detected in a data point
 export const countBikesInDataPoint = (dataPoint: DataPoint): number => {
-  return dataPoint.predictions.filter((prediction) => prediction.category === 1)
-    .length;
-};
-
-// Helper function to count total saddles detected in a data point
-export const countSaddlesInDataPoint = (dataPoint: DataPoint): number => {
-  return dataPoint.predictions.filter((prediction) => prediction.category === 2)
-    .length;
+  return dataPoint.predictions.length;
 };
 
 // Helper function to get the latest occupancy count for a leezenbox
 export const getLatestOccupancyByLeezenboxId = (
-  leezenboxId: number
+  leezenboxId: number,
+  dataPoints: DataPoint[] = exampleDataPoints
 ): LeezenboxOccupancy => {
-  const latestDataPoint = exampleDataPoints
+  const latestDataPoint = dataPoints
     .filter((dp) => dp.leezenbox_id === leezenboxId)
     .sort(
       (a, b) =>
-        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        new Date(b.received_at).getTime() - new Date(a.received_at).getTime()
     )[0];
 
   if (!latestDataPoint) {
@@ -180,7 +168,8 @@ export const getLatestOccupancyByLeezenboxId = (
   }
 
   const bikes = countBikesInDataPoint(latestDataPoint);
-  const saddles = countSaddlesInDataPoint(latestDataPoint);
+  // Since we no longer have saddles as a separate category, set to 0
+  const saddles = 0;
 
   return { bikes, saddles };
 };

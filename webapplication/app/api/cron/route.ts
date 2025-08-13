@@ -13,7 +13,7 @@ export async function GET() {
       process.env.TTN_API_URL ||
       "https://eu1.cloud.thethings.network/api/v3/as/applications/leezencounter/packages/storage/uplink_message";
     const ttnApiKey = process.env.TTN_API_KEY;
-    const timeFrame = process.env.TTN_TIME_FRAME || "48h";
+    const timeFrame = process.env.TTN_TIME_FRAME || "36h";
 
     // Check if API key exists
     if (!ttnApiKey) {
@@ -99,59 +99,216 @@ export async function GET() {
 
     console.log(`Processed ${processedData.length} data items`);
 
-    // Save to database
+    // Validate and filter out invalid records
+    const validData = processedData.filter((item) => {
+      const isValid =
+        item.device_id &&
+        item.received_at &&
+        item.location &&
+        item.timestamp &&
+        typeof item.total_detected === "number" &&
+        Array.isArray(item.predictions);
+
+      if (!isValid) {
+        console.warn(`Skipping invalid data item:`, {
+          device_id: item.device_id,
+          received_at: item.received_at,
+          location: item.location,
+          timestamp: item.timestamp,
+          total_detected: item.total_detected,
+          predictions: Array.isArray(item.predictions)
+            ? `array[${item.predictions.length}]`
+            : item.predictions,
+        });
+      }
+
+      return isValid;
+    });
+
+    console.log(
+      `Filtered to ${validData.length} valid data items (${
+        processedData.length - validData.length
+      } invalid items skipped)`
+    );
+
+    // Save to database using optimized bulk operations
     let savedCount = 0;
-    for (const dataItem of processedData) {
+
+    if (validData.length > 0) {
       try {
-        // Insert the main record
-        const insertQuery = `
-          INSERT INTO ttn_data (
-            device_id, 
-            received_at, 
-            confidence_threshold, 
-            location, 
-            timestamp, 
-            total_detected,
-            predictions
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-          ON CONFLICT (device_id, timestamp) 
-          DO UPDATE SET 
-            received_at = EXCLUDED.received_at,
-            confidence_threshold = EXCLUDED.confidence_threshold,
-            location = EXCLUDED.location,
-            total_detected = EXCLUDED.total_detected,
-            predictions = EXCLUDED.predictions
+        // First, check which records already exist to avoid conflicts
+        const existingRecordsQuery = `
+          SELECT device_id, received_at 
+          FROM ttn_data 
+          WHERE (device_id, received_at) = ANY($1)
         `;
 
-        await pool.query(insertQuery, [
-          dataItem.device_id,
-          dataItem.received_at,
-          dataItem.confidence_threshold,
-          dataItem.location,
-          dataItem.timestamp,
-          dataItem.total_detected,
-          JSON.stringify(dataItem.predictions), // Store predictions as JSON
+        const deviceTimeKeys = validData.map((item) => [
+          item.device_id,
+          item.received_at,
+        ]);
+        const existingResult = await pool.query(existingRecordsQuery, [
+          deviceTimeKeys,
         ]);
 
-        savedCount++;
+        // Create a Set of existing keys for fast lookup
+        const existingKeys = new Set(
+          existingResult.rows.map(
+            (row) => `${row.device_id}|${row.received_at}`
+          )
+        );
+
+        // Filter out records that already exist
+        const newRecords = validData.filter(
+          (item) => !existingKeys.has(`${item.device_id}|${item.received_at}`)
+        );
+
+        const existingRecords = validData.filter((item) =>
+          existingKeys.has(`${item.device_id}|${item.received_at}`)
+        );
+
+        console.log(
+          `Found ${newRecords.length} new records and ${existingRecords.length} existing records`
+        );
+
+        // Bulk insert only new records (no conflicts)
+        if (newRecords.length > 0) {
+          const values = newRecords
+            .map((_, index) => {
+              const baseIndex = index * 7;
+              return `($${baseIndex + 1}, $${baseIndex + 2}, $${
+                baseIndex + 3
+              }, $${baseIndex + 4}, $${baseIndex + 5}, $${baseIndex + 6}, $${
+                baseIndex + 7
+              })`;
+            })
+            .join(", ");
+
+          const insertQuery = `
+            INSERT INTO ttn_data (
+              device_id, 
+              received_at, 
+              confidence_threshold, 
+              location, 
+              timestamp, 
+              total_detected,
+              predictions
+            ) VALUES ${values}
+          `;
+
+          const queryParams = newRecords.flatMap((dataItem) => [
+            dataItem.device_id,
+            dataItem.received_at,
+            0.5, // confidence_threshold
+            dataItem.location,
+            dataItem.timestamp,
+            dataItem.total_detected,
+            JSON.stringify(dataItem.predictions),
+          ]);
+
+          await pool.query(insertQuery, queryParams);
+          savedCount += newRecords.length;
+          console.log(`Bulk inserted ${newRecords.length} new records`);
+        }
+
+        // Update existing records if needed (optional - you might want to skip this)
+        if (existingRecords.length > 0) {
+          console.log(`Updating ${existingRecords.length} existing records`);
+
+          for (const dataItem of existingRecords) {
+            try {
+              const updateQuery = `
+                UPDATE ttn_data SET 
+                  confidence_threshold = $3,
+                  location = $4,
+                  timestamp = $5,
+                  total_detected = $6,
+                  predictions = $7,
+                  updated_at = CURRENT_TIMESTAMP
+                WHERE device_id = $1 AND received_at = $2
+              `;
+
+              await pool.query(updateQuery, [
+                dataItem.device_id,
+                dataItem.received_at,
+                0.5,
+                dataItem.location,
+                dataItem.timestamp,
+                dataItem.total_detected,
+                JSON.stringify(dataItem.predictions),
+              ]);
+
+              savedCount++;
+            } catch (updateError) {
+              console.error(
+                `Failed to update record for device ${dataItem.device_id}:`,
+                updateError
+              );
+            }
+          }
+        }
       } catch (dbError) {
         console.error(
-          `Failed to save data item for device ${dataItem.device_id}:`,
+          "Optimized database operation failed, falling back to individual upserts:",
           dbError
         );
-        // Continue processing other items even if one fails
+
+        // Fallback to individual upserts if the optimized approach fails
+        for (const dataItem of validData) {
+          try {
+            const upsertQuery = `
+              INSERT INTO ttn_data (
+                device_id, 
+                received_at, 
+                confidence_threshold, 
+                location, 
+                timestamp, 
+                total_detected,
+                predictions
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+              ON CONFLICT (device_id, received_at) 
+              DO UPDATE SET 
+                confidence_threshold = EXCLUDED.confidence_threshold,
+                location = EXCLUDED.location,
+                timestamp = EXCLUDED.timestamp,
+                total_detected = EXCLUDED.total_detected,
+                predictions = EXCLUDED.predictions,
+                updated_at = CURRENT_TIMESTAMP
+            `;
+
+            await pool.query(upsertQuery, [
+              dataItem.device_id,
+              dataItem.received_at,
+              0.5,
+              dataItem.location,
+              dataItem.timestamp,
+              dataItem.total_detected,
+              JSON.stringify(dataItem.predictions),
+            ]);
+
+            savedCount++;
+          } catch (individualError) {
+            console.error(
+              `Failed to save data item for device ${dataItem.device_id}:`,
+              individualError
+            );
+          }
+        }
       }
     }
 
     console.log(
-      `Successfully saved ${savedCount} out of ${processedData.length} records to database`
+      `Successfully processed ${savedCount} out of ${validData.length} valid records (${processedData.length} total processed)`
     );
 
     // Return the processed data
     return NextResponse.json({
-      message: `Successfully processed ${processedData.length} TTN records and saved ${savedCount} to database`,
-      data: processedData,
+      message: `Successfully processed ${processedData.length} TTN records (${validData.length} valid) and saved ${savedCount} to database`,
+      data: validData,
       savedCount,
+      totalProcessed: processedData.length,
+      validRecords: validData.length,
+      invalidRecords: processedData.length - validData.length,
       // Include the first JSON object for reference
       sampleObject: jsonObjects.length > 0 ? jsonObjects[0] : null,
     });
