@@ -32,25 +32,25 @@ export default function Home() {
     {
       title: "What we do",
       description:
-        "This is the first section of the homepage, showcasing the capabilities of Leezencounter.",
+        "This project develops a monitoring system for Leezenbox bicycle facilities using computer vision technology. The system automatically detects and counts bicycles to track occupancy levels, providing data that could help inform decisions about bike-sharing infrastructure usage patterns.",
       imageSrc: "/assets/hiltrup.jpeg",
-      altText: "Section 1 Image",
+      altText: "Leezenbox monitoring system",
       reverse: false,
     },
     {
       title: "How it works",
       description:
-        "We utilize a fine-tuned machine learning model to predict .",
+        "The system uses YOLO object detection models running on ESP32 microcontrollers to analyze images from Leezenbox locations. Data is processed locally and transmitted via LoRaWAN networks. This approach aims to balance detection accuracy with low power consumption and privacy considerations.",
       imageSrc: "/assets/roxel.webp",
-      altText: "Section 2 Image",
+      altText: "Object detection system components",
       reverse: true,
     },
     {
       title: "Who we are",
       description:
-        "We are a masters projectseminar group from the University of Münster. The goal of our seminar is to create a proof of concept for a Leezenbox monitoring system using TinyAIoT.",
+        "We are master's students from the University of Münster working on this project as part of our studies in TinyAIoT applications. The goal is to explore how machine learning and IoT technologies can be applied to urban mobility challenges through a practical proof of concept.",
       imageSrc: "/assets/hiltrup.jpeg",
-      altText: "Section 3 Image",
+      altText: "University project team",
       reverse: false,
     },
   ];
@@ -64,8 +64,9 @@ export default function Home() {
             <b className="text-cyan-600">Leezencounter</b>
           </h1>
           <p className="text-secondary-foreground w-full">
-            This is a demo of the Leezencounter application, showcasing the
-            capabilities of TinyAIoT powered Leezenbox Monitoring.
+            A demonstration of AI-powered bicycle monitoring for Leezenbox
+            facilities. This system tracks occupancy patterns using computer
+            vision technology to provide insights into urban bike-sharing usage.
           </p>
         </div>
         <TiltedCard

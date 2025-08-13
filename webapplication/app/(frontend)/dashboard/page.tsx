@@ -80,17 +80,17 @@ const DashboardPage = async () => {
   const occupancyRate =
     totalCapacity > 0 ? (currentOccupancy / totalCapacity) * 100 : 0;
 
-  // Calculate peak occupancy from last 24 hours of chart data
-  const last24Hours = new Date();
-  last24Hours.setHours(last24Hours.getHours() - 24);
+  // Calculate peak occupancy from last 48 hours of chart data
+  const last48Hours = new Date();
+  last48Hours.setHours(last48Hours.getHours() - 48);
 
-  const recent24hData = chartData.filter(
-    (point) => new Date(point.received_at) >= last24Hours
+  const recent48hData = chartData.filter(
+    (point) => new Date(point.received_at) >= last48Hours
   );
 
   const peakOccupancy =
-    recent24hData.length > 0
-      ? Math.max(...recent24hData.map((point) => point.predictions.length))
+    recent48hData.length > 0
+      ? Math.max(...recent48hData.map((point) => point.predictions.length))
       : 0;
 
   // Calculate change percentage (mock calculation - you could enhance this with historical data)
@@ -134,9 +134,9 @@ const DashboardPage = async () => {
         </LeezenboxStatCard>
 
         <LeezenboxStatCard
-          description="24h Peak"
+          description="48h Peak"
           title={`${peakOccupancy}`}
-          change="Last 24h"
+          change="Last 48h"
           changeIcon={<Activity />}
           details="Maximum concurrent bikes"
         >

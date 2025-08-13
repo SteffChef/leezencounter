@@ -89,7 +89,7 @@ export function LeezenboxChart({
     if (chartData && chartData.activePayload && chartData.activePayload[0]) {
       const clickedTimestamp = chartData.activePayload[0].payload.timestamp;
 
-      if (timeRange === "24h") {
+      if (timeRange === "48h") {
         if (!aggregateData) {
           // For individual leezenbox pages, find the exact data point
           const clickedDataPoint = data.find((dp: DataPoint) => {
@@ -181,12 +181,12 @@ export function LeezenboxChart({
     let intervalMinutes: number;
 
     switch (timeRange) {
-      case "24h":
-        startDate.setHours(startDate.getHours() - 24);
+      case "48h":
+        startDate.setHours(startDate.getHours() - 48);
 
         if (!aggregateData) {
           // For individual leezenbox pages, show all individual data points
-          const filteredData24h = data.filter((item) => {
+          const filteredData48h = data.filter((item) => {
             const itemDate = new Date(item.received_at);
             return (
               !isNaN(itemDate.getTime()) &&
@@ -195,7 +195,7 @@ export function LeezenboxChart({
             );
           });
 
-          return filteredData24h
+          return filteredData48h
             .map((item) => {
               const date = new Date(item.received_at);
               if (isNaN(date.getTime())) {
@@ -222,7 +222,7 @@ export function LeezenboxChart({
         }
 
         // For dashboard/aggregated view, group data points by hour
-        const filteredData24h = data.filter((item) => {
+        const filteredData48h = data.filter((item) => {
           const itemDate = new Date(item.received_at);
           return (
             !isNaN(itemDate.getTime()) &&
@@ -234,7 +234,7 @@ export function LeezenboxChart({
         // Group data points by hour for better aggregation
         const hourlyGroups: { [hour: string]: DataPoint[] } = {};
 
-        filteredData24h.forEach((item) => {
+        filteredData48h.forEach((item) => {
           const date = new Date(item.received_at);
           if (!isNaN(date.getTime())) {
             // Round to nearest hour for grouping
@@ -286,7 +286,7 @@ export function LeezenboxChart({
         intervalMinutes = 24 * 60;
     }
 
-    // Filter data to the time range first (for non-24h views)
+    // Filter data to the time range first (for non-48h views)
     const filteredData = data.filter((item) => {
       const itemDate = new Date(item.received_at);
       // Validate the date before including it
@@ -297,7 +297,7 @@ export function LeezenboxChart({
       );
     });
 
-    // Generate complete time series with regular intervals (for non-24h views)
+    // Generate complete time series with regular intervals (for non-48h views)
     const timeSeriesData = [];
     const currentTime = new Date(startDate);
     const intervalMs = intervalMinutes * 60 * 1000;
@@ -355,7 +355,7 @@ export function LeezenboxChart({
     }
 
     switch (timeRange) {
-      case "24h":
+      case "48h":
         if (!aggregateData) {
           // For individual data points, show more precise time
           return date.toLocaleTimeString("en-US", {
@@ -404,7 +404,7 @@ export function LeezenboxChart({
     }
 
     switch (timeRange) {
-      case "24h":
+      case "48h":
         if (!aggregateData) {
           // For individual data points, show precise timestamp
           return date.toLocaleString("en-US", {
@@ -476,7 +476,7 @@ export function LeezenboxChart({
             variant="outline"
             className="hidden *:data-[slot=toggle-group-item]:!px-4 @[767px]/card:flex"
           >
-            <ToggleGroupItem value="24h">Last 24 hours</ToggleGroupItem>
+            <ToggleGroupItem value="48h">Last 48 hours</ToggleGroupItem>
             <ToggleGroupItem value="7d">Last 7 days</ToggleGroupItem>
             <ToggleGroupItem value="30d">Last 30 days</ToggleGroupItem>
             <ToggleGroupItem value="3m">Last 3 months</ToggleGroupItem>
@@ -490,8 +490,8 @@ export function LeezenboxChart({
               <SelectValue placeholder="Last 3 months" />
             </SelectTrigger>
             <SelectContent className="rounded-xl">
-              <SelectItem value="24h" className="rounded-lg">
-                Last 24 hours
+              <SelectItem value="48h" className="rounded-lg">
+                Last 48 hours
               </SelectItem>
               <SelectItem value="7d" className="rounded-lg">
                 Last 7 days
@@ -511,7 +511,10 @@ export function LeezenboxChart({
           config={chartConfig}
           className="aspect-auto h-[250px] w-full"
         >
-          <AreaChart data={sortedData} onClick={handleDataPointClick}>
+          <AreaChart
+            data={sortedData}
+            onClick={!aggregateData ? handleDataPointClick : undefined}
+          >
             <defs>
               <linearGradient id="fillDesktop" x1="0" y1="0" x2="0" y2="1">
                 <stop
@@ -545,7 +548,7 @@ export function LeezenboxChart({
               axisLine={false}
               tickMargin={8}
               minTickGap={
-                timeRange === "24h"
+                timeRange === "48h"
                   ? aggregateData
                     ? 120
                     : 180 // More spacing for individual data points
@@ -562,7 +565,7 @@ export function LeezenboxChart({
               axisLine={false}
               tickMargin={8}
               minTickGap={
-                timeRange === "24h" ? 80 : timeRange === "7d" ? 60 : 40
+                timeRange === "48h" ? 80 : timeRange === "7d" ? 60 : 40
               }
               interval="preserveStartEnd"
             />
@@ -582,7 +585,7 @@ export function LeezenboxChart({
               fill="url(#fillMobile)"
               stroke="var(--color-mobile)"
               stackId="a"
-              style={{ cursor: "pointer" }}
+              style={{ cursor: !aggregateData ? "pointer" : "default" }}
             />
           </AreaChart>
         </ChartContainer>
