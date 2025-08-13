@@ -1,17 +1,47 @@
 import LeezenboxesOverview from "./components/leezenboxes-overview";
 import LeezenboxStatCard from "@/components/leezenbox-stat-card";
 import { TrendingUp } from "lucide-react";
+import { generateExampleDataForLeezenboxes } from "@/example-data";
 import {
-  getDataPointsByLeezenboxId,
   getLatestOccupancyForAllLeezenboxes,
-} from "@/example-data";
+  getLeezenboxDataForMultiple,
+} from "@/actions/get-leezenbox-data";
 import { LeezenboxChart } from "@/components/leezenbox-chart";
 import { getLeezenboxs } from "@/actions/get-leezenboxs";
+import { DataPoint } from "@/types";
 
 const DashboardPage = async () => {
   const leezenboxes = await getLeezenboxs();
-  const data = getDataPointsByLeezenboxId(1);
-  const leezenboxOccupancies = await getLatestOccupancyForAllLeezenboxes();
+
+  // Get occupancy data using the new function that respects demo flags
+  const leezenboxOccupancies = await getLatestOccupancyForAllLeezenboxes(
+    leezenboxes.map((lb) => ({
+      id: lb.id,
+      demo: lb.demo,
+      ttn_location_key: lb.ttn_location_key,
+    }))
+  );
+
+  // Get chart data - for now, let's use the first leezenbox or demo data
+  const firstLeezenbox = leezenboxes[0];
+  let chartData: DataPoint[] = [];
+
+  if (firstLeezenbox) {
+    if (firstLeezenbox.demo) {
+      // Generate mock data for this specific demo leezenbox
+      chartData = generateExampleDataForLeezenboxes([firstLeezenbox.id]);
+    } else {
+      // Get real data for non-demo leezenbox
+      const allData = await getLeezenboxDataForMultiple([
+        {
+          id: firstLeezenbox.id,
+          demo: firstLeezenbox.demo,
+          ttn_location_key: firstLeezenbox.ttn_location_key,
+        },
+      ]);
+      chartData = allData;
+    }
+  }
 
   const currentOccupancy = Object.values(leezenboxOccupancies).reduce(
     (acc, occupancy) => acc + occupancy.bikes,
@@ -24,10 +54,12 @@ const DashboardPage = async () => {
   );
 
   const averageOccupancy =
-    data.reduce((acc, point) => {
-      const bikes = point.predictions.filter((p) => p.category === 1).length;
-      return acc + bikes;
-    }, 0) / data.length;
+    chartData.length > 0
+      ? chartData.reduce((acc, point) => {
+          const bikes = point.predictions.length;
+          return acc + bikes;
+        }, 0) / chartData.length
+      : 0;
 
   return (
     <>
@@ -58,7 +90,7 @@ const DashboardPage = async () => {
           leezenboxOccupancies={leezenboxOccupancies}
         />
       </div>
-      <LeezenboxChart data={data} />
+      <LeezenboxChart data={chartData} />
     </>
   );
 };

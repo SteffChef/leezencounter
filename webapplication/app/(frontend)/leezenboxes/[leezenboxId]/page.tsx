@@ -8,7 +8,7 @@ import { getLeezenboxById } from "@/actions/get-leezenboxs";
 import { Separator } from "@/components/ui/separator";
 import DeleteLeezenboxButton from "./components/delete-leezenbox-button";
 import Link from "next/link";
-import { getLeezenboxDataByTTNKey } from "@/actions/get-leezenbox-data";
+import { getLeezenboxDataByLeezenbox } from "@/actions/get-leezenbox-data";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { DataPoint, Leezenbox } from "@/types";
@@ -38,8 +38,10 @@ const LeezenboxByIdPage = ({ params }: LeezenboxByIdPageProps) => {
         const fetchedLeezenbox = await getLeezenboxById(leezenboxIdNumber);
         setLeezenbox(fetchedLeezenbox);
 
-        if (fetchedLeezenbox?.ttn_location_key) {
-          const fetchedData = await getLeezenboxDataByTTNKey(
+        if (fetchedLeezenbox) {
+          const fetchedData = await getLeezenboxDataByLeezenbox(
+            fetchedLeezenbox.id,
+            fetchedLeezenbox.demo,
             fetchedLeezenbox.ttn_location_key
           );
           setData(fetchedData);
@@ -56,28 +58,32 @@ const LeezenboxByIdPage = ({ params }: LeezenboxByIdPageProps) => {
 
   // Refresh data function
   const handleRefresh = async () => {
-    if (!leezenbox?.ttn_location_key) return;
+    if (!leezenbox) return;
 
     setRefreshing(true);
     try {
-      // First, trigger the cronjob to fetch fresh data from TTN and update the database
-      console.log("Triggering cronjob to fetch fresh data...");
-      const cronResponse = await fetch("/api/cron", {
-        method: "GET",
-      });
+      if (!leezenbox.demo) {
+        // Only trigger cronjob for real data (non-demo leezenboxes)
+        console.log("Triggering cronjob to fetch fresh data...");
+        const cronResponse = await fetch("/api/cron", {
+          method: "GET",
+        });
 
-      if (!cronResponse.ok) {
-        console.warn(
-          "Cronjob failed, but continuing with database refresh:",
-          cronResponse.statusText
-        );
-      } else {
-        console.log("Cronjob completed successfully");
+        if (!cronResponse.ok) {
+          console.warn(
+            "Cronjob failed, but continuing with database refresh:",
+            cronResponse.statusText
+          );
+        } else {
+          console.log("Cronjob completed successfully");
+        }
       }
 
-      // Then fetch the updated data from the database
-      console.log("Fetching updated data from database...");
-      const refreshedData = await getLeezenboxDataByTTNKey(
+      // Fetch updated data (either from database or mock data)
+      console.log("Fetching updated data...");
+      const refreshedData = await getLeezenboxDataByLeezenbox(
+        leezenbox.id,
+        leezenbox.demo,
         leezenbox.ttn_location_key
       );
       setData(refreshedData);
@@ -189,7 +195,6 @@ const LeezenboxByIdPage = ({ params }: LeezenboxByIdPageProps) => {
               ? "Moderate utilization"
               : "Low utilization"
           }
-          changeIcon={<TrendingUp />}
           details={`${capacityUtilization.toFixed(1)}% capacity used`}
         >
           Real-time bike count <RefreshCw size={20} />
@@ -197,8 +202,6 @@ const LeezenboxByIdPage = ({ params }: LeezenboxByIdPageProps) => {
         <LeezenboxStatCard
           description="Average Occupancy"
           title={`${averageOccupancy.toFixed(1)} / ${leezenbox?.capacity || 0}`}
-          change="+12.5%"
-          changeIcon={<TrendingUp />}
           details="Trending up this month"
         >
           Visitors for the last 6 months <TrendingUp size={20} />
@@ -206,8 +209,6 @@ const LeezenboxByIdPage = ({ params }: LeezenboxByIdPageProps) => {
         <LeezenboxStatCard
           description="Lowest Occupancy"
           title={`${lowestOccupancy} / ${leezenbox?.capacity || 0}`}
-          change="+12.5%"
-          changeIcon={<TrendingUp />}
           details="Trending up this month"
         >
           Visitors for the last 6 months <TrendingUp size={20} />
@@ -215,8 +216,6 @@ const LeezenboxByIdPage = ({ params }: LeezenboxByIdPageProps) => {
         <LeezenboxStatCard
           description="Highest Occupancy"
           title={`${highestOccupancy} / ${leezenbox?.capacity || 0}`}
-          change="+12.5%"
-          changeIcon={<TrendingUp />}
           details="Trending up this month"
         >
           Visitors for the last 6 months <TrendingUp size={20} />

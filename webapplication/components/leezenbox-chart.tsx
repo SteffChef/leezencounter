@@ -89,9 +89,11 @@ export function LeezenboxChart({
 
       if (timeRange === "24h") {
         // For 24h view, find the exact data point
-        const clickedDataPoint = data.find(
-          (dp: DataPoint) => dp.received_at === clickedTimestamp
-        );
+        // The chart uses ISO string format, so we need to match against converted timestamps
+        const clickedDataPoint = data.find((dp: DataPoint) => {
+          const dpDate = new Date(dp.received_at);
+          return !isNaN(dpDate.getTime()) && dpDate.toISOString() === clickedTimestamp;
+        });
 
         if (clickedDataPoint) {
           setSelectedDataPoint(clickedDataPoint);
@@ -136,6 +138,11 @@ export function LeezenboxChart({
 
   // Generate complete time series data with zeros for missing periods
   const generateCompleteTimeSeries = () => {
+    // Debug: Log the first few data points to check the structure
+    if (data.length > 0) {
+      console.log("Sample data points:", data.slice(0, 3));
+    }
+    
     const referenceDate = new Date();
     const startDate = new Date(referenceDate);
     const endDate = new Date(referenceDate);
@@ -148,14 +155,24 @@ export function LeezenboxChart({
         // For 24h view, show individual data points without aggregation
         const filteredData24h = data.filter((item) => {
           const itemDate = new Date(item.received_at);
-          return itemDate >= startDate && itemDate <= endDate;
+          // Validate the date before including it
+          return !isNaN(itemDate.getTime()) && itemDate >= startDate && itemDate <= endDate;
         });
 
         return filteredData24h
-          .map((item) => ({
-            timestamp: item.received_at,
-            bicycles: item.predictions.length,
-          }))
+          .map((item) => {
+            const date = new Date(item.received_at);
+            // Only include items with valid dates
+            if (isNaN(date.getTime())) {
+              console.warn("Skipping item with invalid date:", item.received_at);
+              return null;
+            }
+            return {
+              timestamp: date.toISOString(),
+              bicycles: item.predictions.length,
+            };
+          })
+          .filter((item): item is { timestamp: string; bicycles: number } => item !== null) // Type-safe filter
           .sort(
             (a, b) =>
               new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
@@ -181,7 +198,8 @@ export function LeezenboxChart({
     // Filter data to the time range first (for non-24h views)
     const filteredData = data.filter((item) => {
       const itemDate = new Date(item.received_at);
-      return itemDate >= startDate && itemDate <= endDate;
+      // Validate the date before including it
+      return !isNaN(itemDate.getTime()) && itemDate >= startDate && itemDate <= endDate;
     });
 
     // Generate complete time series with regular intervals (for non-24h views)
@@ -196,6 +214,11 @@ export function LeezenboxChart({
       // Find all data points that fall within this interval
       const dataPointsInInterval = filteredData.filter((item) => {
         const itemDate = new Date(item.received_at);
+        // Additional validation for dates within intervals
+        if (isNaN(itemDate.getTime())) {
+          console.warn("Invalid date in interval filtering:", item.received_at);
+          return false;
+        }
         return itemDate >= intervalStart && itemDate < intervalEnd;
       });
 
@@ -226,6 +249,12 @@ export function LeezenboxChart({
   // Helper function to format X-axis ticks based on time range
   const formatXAxisTick = (value: string) => {
     const date = new Date(value);
+    
+    // Check if the date is valid
+    if (isNaN(date.getTime())) {
+      console.warn("Invalid date value for X-axis:", value);
+      return "";
+    }
 
     switch (timeRange) {
       case "24h":
@@ -259,6 +288,12 @@ export function LeezenboxChart({
   // Helper function to format tooltip labels
   const formatTooltipLabel = (value: string) => {
     const date = new Date(value);
+    
+    // Check if the date is valid
+    if (isNaN(date.getTime())) {
+      console.warn("Invalid date value:", value);
+      return "Invalid date";
+    }
 
     switch (timeRange) {
       case "24h":

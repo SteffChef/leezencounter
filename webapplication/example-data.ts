@@ -91,10 +91,13 @@ function generateExampleDataPoints(leezenboxIds: number[] = []): DataPoint[] {
     }
 
     activeLeezenboxes.forEach((leezenboxId, index) => {
-      const id = (719 - hoursAgo) * 1000 + leezenboxId * 10 + index + 1; // Generate more unique IDs
+      // Generate unique IDs using timestamp and leezenbox ID
+      const uniqueId = Math.abs(
+        Math.floor(seededRandom(timestamp.getTime() + leezenboxId + index))
+      );
 
       dataPoints.push({
-        id,
+        id: uniqueId,
         leezenbox_id: leezenboxId,
         received_at: timestamp.toISOString(),
         predictions: generatePredictionsForHour(timestamp, leezenboxId),
