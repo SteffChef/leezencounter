@@ -21,11 +21,13 @@ import { toast } from "sonner";
 interface DeleteLeezenboxButtonProps {
   leezenboxId: number;
   leezenboxName?: string; // Optional name for better UX in the dialog
+  isDefaultLocation?: boolean; // Add flag to disable deletion for default locations
 }
 
 const DeleteLeezenboxButton: React.FC<DeleteLeezenboxButtonProps> = ({
   leezenboxId,
   leezenboxName,
+  isDefaultLocation = false,
 }) => {
   const router = useRouter();
   const [isDeleting, setIsDeleting] = React.useState(false);
@@ -34,9 +36,9 @@ const DeleteLeezenboxButton: React.FC<DeleteLeezenboxButtonProps> = ({
     setIsDeleting(true);
 
     try {
-      const success = await deleteLeezenbox(leezenboxId);
+      const result = await deleteLeezenbox(leezenboxId);
 
-      if (success) {
+      if (result.success) {
         // Navigate back to the leezenboxes list page after successful deletion
         router.push("/leezenboxes");
         toast.success(
@@ -46,20 +48,36 @@ const DeleteLeezenboxButton: React.FC<DeleteLeezenboxButtonProps> = ({
         );
       } else {
         toast.error(
-          `Failed to delete Leezenbox ${
-            leezenboxName ? `"${leezenboxName}"` : ""
-          }.`
+          result.error ||
+            `Failed to delete Leezenbox ${
+              leezenboxName ? `"${leezenboxName}"` : ""
+            }.`
         );
         // Optionally reload the page to ensure fresh data
         router.refresh();
       }
     } catch (error) {
       console.error("Error deleting leezenbox:", error);
-      // You could add toast notification here to show the error
+      toast.error("An unexpected error occurred while deleting the Leezenbox.");
     } finally {
       setIsDeleting(false);
     }
   };
+
+  // If this is a default location, show a disabled button with explanation
+  if (isDefaultLocation) {
+    return (
+      <div className="space-y-2">
+        <Button variant="destructive" disabled>
+          <Trash className="h-4 w-4" />
+          Cannot Delete Default Location
+        </Button>
+        <p className="text-sm text-muted-foreground">
+          This location is marked as default and cannot be deleted.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <AlertDialog>

@@ -16,6 +16,7 @@ export interface Leezenbox {
   num_lockers_with_power: number;
   capacity: number;
   demo: boolean;
+  default_location: boolean;
 }
 
 export interface Prediction {
