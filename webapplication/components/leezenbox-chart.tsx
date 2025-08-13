@@ -55,6 +55,7 @@ const chartConfig = {
 interface LeezenboxChartProps {
   data: DataPoint[];
   backgroundImageSrc?: string;
+  aggregateData?: boolean; // Controls whether to aggregate data (default: true for dashboard, false for individual pages)
 }
 
 interface ChartClickEvent {
@@ -69,6 +70,7 @@ interface ChartClickEvent {
 export function LeezenboxChart({
   data,
   backgroundImageSrc,
+  aggregateData = true, // Default to true for dashboard behavior
 }: LeezenboxChartProps) {
   const isMobile = useIsMobile();
   const [timeRange, setTimeRange] = React.useState("3m");
@@ -88,16 +90,45 @@ export function LeezenboxChart({
       const clickedTimestamp = chartData.activePayload[0].payload.timestamp;
 
       if (timeRange === "24h") {
-        // For 24h view, find the exact data point
-        // The chart uses ISO string format, so we need to match against converted timestamps
-        const clickedDataPoint = data.find((dp: DataPoint) => {
-          const dpDate = new Date(dp.received_at);
-          return !isNaN(dpDate.getTime()) && dpDate.toISOString() === clickedTimestamp;
-        });
+        if (!aggregateData) {
+          // For individual leezenbox pages, find the exact data point
+          const clickedDataPoint = data.find((dp: DataPoint) => {
+            const dpDate = new Date(dp.received_at);
+            return (
+              !isNaN(dpDate.getTime()) &&
+              dpDate.toISOString() === clickedTimestamp
+            );
+          });
 
-        if (clickedDataPoint) {
-          setSelectedDataPoint(clickedDataPoint);
-          setIsModalOpen(true);
+          if (clickedDataPoint) {
+            setSelectedDataPoint(clickedDataPoint);
+            setIsModalOpen(true);
+          }
+        } else {
+          // For dashboard/aggregated view, find data points in the clicked hour
+          const clickedTime = new Date(clickedTimestamp);
+          const hourStart = new Date(
+            clickedTime.getFullYear(),
+            clickedTime.getMonth(),
+            clickedTime.getDate(),
+            clickedTime.getHours()
+          );
+          const hourEnd = new Date(hourStart.getTime() + 60 * 60 * 1000); // Add 1 hour
+
+          const dataPointsInHour = data.filter((dp: DataPoint) => {
+            const dpDate = new Date(dp.received_at);
+            return (
+              !isNaN(dpDate.getTime()) &&
+              dpDate >= hourStart &&
+              dpDate < hourEnd
+            );
+          });
+
+          if (dataPointsInHour.length > 0) {
+            // Show the first data point from this hour
+            setSelectedDataPoint(dataPointsInHour[0]);
+            setIsModalOpen(true);
+          }
         }
       } else {
         // For other time ranges, use the existing interval-based logic
@@ -142,7 +173,7 @@ export function LeezenboxChart({
     if (data.length > 0) {
       console.log("Sample data points:", data.slice(0, 3));
     }
-    
+
     const referenceDate = new Date();
     const startDate = new Date(referenceDate);
     const endDate = new Date(referenceDate);
@@ -152,27 +183,87 @@ export function LeezenboxChart({
     switch (timeRange) {
       case "24h":
         startDate.setHours(startDate.getHours() - 24);
-        // For 24h view, show individual data points without aggregation
+
+        if (!aggregateData) {
+          // For individual leezenbox pages, show all individual data points
+          const filteredData24h = data.filter((item) => {
+            const itemDate = new Date(item.received_at);
+            return (
+              !isNaN(itemDate.getTime()) &&
+              itemDate >= startDate &&
+              itemDate <= endDate
+            );
+          });
+
+          return filteredData24h
+            .map((item) => {
+              const date = new Date(item.received_at);
+              if (isNaN(date.getTime())) {
+                console.warn(
+                  "Skipping item with invalid date:",
+                  item.received_at
+                );
+                return null;
+              }
+              return {
+                timestamp: date.toISOString(),
+                bicycles: item.predictions.length,
+              };
+            })
+            .filter(
+              (item): item is { timestamp: string; bicycles: number } =>
+                item !== null
+            )
+            .sort(
+              (a, b) =>
+                new Date(a.timestamp).getTime() -
+                new Date(b.timestamp).getTime()
+            );
+        }
+
+        // For dashboard/aggregated view, group data points by hour
         const filteredData24h = data.filter((item) => {
           const itemDate = new Date(item.received_at);
-          // Validate the date before including it
-          return !isNaN(itemDate.getTime()) && itemDate >= startDate && itemDate <= endDate;
+          return (
+            !isNaN(itemDate.getTime()) &&
+            itemDate >= startDate &&
+            itemDate <= endDate
+          );
         });
 
-        return filteredData24h
-          .map((item) => {
-            const date = new Date(item.received_at);
-            // Only include items with valid dates
-            if (isNaN(date.getTime())) {
-              console.warn("Skipping item with invalid date:", item.received_at);
-              return null;
+        // Group data points by hour for better aggregation
+        const hourlyGroups: { [hour: string]: DataPoint[] } = {};
+
+        filteredData24h.forEach((item) => {
+          const date = new Date(item.received_at);
+          if (!isNaN(date.getTime())) {
+            // Round to nearest hour for grouping
+            const hourKey = new Date(
+              date.getFullYear(),
+              date.getMonth(),
+              date.getDate(),
+              date.getHours()
+            ).toISOString();
+            if (!hourlyGroups[hourKey]) {
+              hourlyGroups[hourKey] = [];
             }
+            hourlyGroups[hourKey].push(item);
+          }
+        });
+
+        // Convert groups to chart data with aggregated bicycle counts
+        return Object.entries(hourlyGroups)
+          .map(([hourKey, dataPoints]) => {
+            // Sum up all bicycle predictions from all locations for this hour
+            const totalBicycles = dataPoints.reduce(
+              (sum, dp) => sum + dp.predictions.length,
+              0
+            );
             return {
-              timestamp: date.toISOString(),
-              bicycles: item.predictions.length,
+              timestamp: hourKey,
+              bicycles: totalBicycles,
             };
           })
-          .filter((item): item is { timestamp: string; bicycles: number } => item !== null) // Type-safe filter
           .sort(
             (a, b) =>
               new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
@@ -199,7 +290,11 @@ export function LeezenboxChart({
     const filteredData = data.filter((item) => {
       const itemDate = new Date(item.received_at);
       // Validate the date before including it
-      return !isNaN(itemDate.getTime()) && itemDate >= startDate && itemDate <= endDate;
+      return (
+        !isNaN(itemDate.getTime()) &&
+        itemDate >= startDate &&
+        itemDate <= endDate
+      );
     });
 
     // Generate complete time series with regular intervals (for non-24h views)
@@ -222,20 +317,23 @@ export function LeezenboxChart({
         return itemDate >= intervalStart && itemDate < intervalEnd;
       });
 
-      // Calculate average bicycles and saddles per observation in this interval
-      let avgBicycles = 0;
+      // Calculate total bicycles from all locations in this interval
+      let totalBicycles = 0;
 
       if (dataPointsInInterval.length > 0) {
-        const totalBicycles = dataPointsInInterval.reduce((sum, item) => {
+        // Sum up all bicycle predictions from all locations in this time interval
+        totalBicycles = dataPointsInInterval.reduce((sum, item) => {
           return sum + item.predictions.length;
         }, 0);
 
-        avgBicycles = Math.round(totalBicycles / dataPointsInInterval.length);
+        // For longer time periods, we might want to show average per time unit
+        // For now, let's show the total to better represent all locations
+        totalBicycles = Math.round(totalBicycles);
       }
 
       timeSeriesData.push({
         timestamp: intervalStart.toISOString(),
-        bicycles: avgBicycles,
+        bicycles: totalBicycles,
       });
 
       currentTime.setMinutes(currentTime.getMinutes() + intervalMinutes);
@@ -249,7 +347,7 @@ export function LeezenboxChart({
   // Helper function to format X-axis ticks based on time range
   const formatXAxisTick = (value: string) => {
     const date = new Date(value);
-    
+
     // Check if the date is valid
     if (isNaN(date.getTime())) {
       console.warn("Invalid date value for X-axis:", value);
@@ -258,10 +356,20 @@ export function LeezenboxChart({
 
     switch (timeRange) {
       case "24h":
-        return date.toLocaleTimeString("en-US", {
-          hour: "numeric",
-          minute: "2-digit",
-        });
+        if (!aggregateData) {
+          // For individual data points, show more precise time
+          return date.toLocaleTimeString("en-US", {
+            hour: "numeric",
+            minute: "2-digit",
+            second: "2-digit",
+          });
+        } else {
+          // For aggregated data, show hourly
+          return date.toLocaleTimeString("en-US", {
+            hour: "numeric",
+            minute: "2-digit",
+          });
+        }
       case "7d":
         return date.toLocaleDateString("en-US", {
           weekday: "short",
@@ -288,7 +396,7 @@ export function LeezenboxChart({
   // Helper function to format tooltip labels
   const formatTooltipLabel = (value: string) => {
     const date = new Date(value);
-    
+
     // Check if the date is valid
     if (isNaN(date.getTime())) {
       console.warn("Invalid date value:", value);
@@ -297,11 +405,24 @@ export function LeezenboxChart({
 
     switch (timeRange) {
       case "24h":
-        return date.toLocaleString("en-US", {
-          hour: "numeric",
-          minute: "2-digit",
-          second: "2-digit",
-        });
+        if (!aggregateData) {
+          // For individual data points, show precise timestamp
+          return date.toLocaleString("en-US", {
+            hour: "numeric",
+            minute: "2-digit",
+            second: "2-digit",
+            month: "short",
+            day: "numeric",
+          });
+        } else {
+          // For aggregated data, show hourly
+          return date.toLocaleString("en-US", {
+            hour: "numeric",
+            minute: "2-digit",
+            month: "short",
+            day: "numeric",
+          });
+        }
       case "7d":
         return date.toLocaleDateString("en-US", {
           weekday: "long",
@@ -330,12 +451,22 @@ export function LeezenboxChart({
   return (
     <Card className="@container/card">
       <CardHeader>
-        <CardTitle>Total Visitors</CardTitle>
+        <CardTitle>
+          {aggregateData
+            ? "Total Visitors Across All Locations"
+            : "Visitor Activity"}
+        </CardTitle>
         <CardDescription>
           <span className="hidden @[540px]/card:block">
-            Total for the selected time period
+            {aggregateData
+              ? "Aggregated data from all Leezenbox locations for the selected time period"
+              : "Individual data points for the selected time period"}
           </span>
-          <span className="@[540px]/card:hidden">Selected period</span>
+          <span className="@[540px]/card:hidden">
+            {aggregateData
+              ? "All locations - Selected period"
+              : "Selected period"}
+          </span>
         </CardDescription>
         <CardAction>
           <ToggleGroup
@@ -414,7 +545,13 @@ export function LeezenboxChart({
               axisLine={false}
               tickMargin={8}
               minTickGap={
-                timeRange === "24h" ? 120 : timeRange === "7d" ? 60 : 40
+                timeRange === "24h"
+                  ? aggregateData
+                    ? 120
+                    : 180 // More spacing for individual data points
+                  : timeRange === "7d"
+                  ? 60
+                  : 40
               }
               interval="preserveStartEnd"
               tickFormatter={formatXAxisTick}

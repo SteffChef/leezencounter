@@ -178,6 +178,7 @@ const LeezenboxByIdPage = ({ params }: LeezenboxByIdPageProps) => {
       </div>
       <LeezenboxChart
         data={data}
+        aggregateData={false}
         backgroundImageSrc={
           leezenbox.ttn_location_key == "Rudolf-Harbig-Weg"
             ? "/assets/Promenade.jpg"
