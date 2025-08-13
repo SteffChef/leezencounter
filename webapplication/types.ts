@@ -15,6 +15,7 @@ export interface Leezenbox {
   longitude: number;
   num_lockers_with_power: number;
   capacity: number;
+  demo: boolean;
 }
 
 export interface Prediction {
