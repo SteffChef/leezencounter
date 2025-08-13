@@ -82,39 +82,50 @@ export function LeezenboxChart({ data }: LeezenboxChartProps) {
   const handleDataPointClick = (chartData: ChartClickEvent) => {
     if (chartData && chartData.activePayload && chartData.activePayload[0]) {
       const clickedTimestamp = chartData.activePayload[0].payload.timestamp;
-      const clickedTime = new Date(clickedTimestamp);
 
-      // Determine interval length based on time range
-      let intervalMinutes: number;
-      switch (timeRange) {
-        case "24h":
-          intervalMinutes = 60;
-          break;
-        case "7d":
-          intervalMinutes = 4 * 60;
-          break;
-        case "30d":
-        case "3m":
-          intervalMinutes = 24 * 60;
-          break;
-        default:
-          intervalMinutes = 24 * 60;
-      }
+      if (timeRange === "24h") {
+        // For 24h view, find the exact data point
+        const clickedDataPoint = data.find(
+          (dp: DataPoint) => dp.received_at === clickedTimestamp
+        );
 
-      const intervalMs = intervalMinutes * 60 * 1000;
-      const intervalEnd = new Date(clickedTime.getTime() + intervalMs);
+        if (clickedDataPoint) {
+          setSelectedDataPoint(clickedDataPoint);
+          setIsModalOpen(true);
+        }
+      } else {
+        // For other time ranges, use the existing interval-based logic
+        const clickedTime = new Date(clickedTimestamp);
 
-      // Find all data points within the clicked interval
-      const dataPointsInInterval = data.filter((dp: DataPoint) => {
-        const dpTime = new Date(dp.timestamp);
-        return dpTime >= clickedTime && dpTime < intervalEnd;
-      });
+        // Determine interval length based on time range
+        let intervalMinutes: number;
+        switch (timeRange) {
+          case "7d":
+            intervalMinutes = 4 * 60;
+            break;
+          case "30d":
+          case "3m":
+            intervalMinutes = 24 * 60;
+            break;
+          default:
+            intervalMinutes = 24 * 60;
+        }
 
-      // If we have data points in this interval, show the first one or combine them
-      if (dataPointsInInterval.length > 0) {
-        // For simplicity, show the first data point, but you could aggregate them
-        setSelectedDataPoint(dataPointsInInterval[0]);
-        setIsModalOpen(true);
+        const intervalMs = intervalMinutes * 60 * 1000;
+        const intervalEnd = new Date(clickedTime.getTime() + intervalMs);
+
+        // Find all data points within the clicked interval
+        const dataPointsInInterval = data.filter((dp: DataPoint) => {
+          const dpTime = new Date(dp.received_at);
+          return dpTime >= clickedTime && dpTime < intervalEnd;
+        });
+
+        // If we have data points in this interval, show the first one or combine them
+        if (dataPointsInInterval.length > 0) {
+          // For simplicity, show the first data point, but you could aggregate them
+          setSelectedDataPoint(dataPointsInInterval[0]);
+          setIsModalOpen(true);
+        }
       }
     }
   };
@@ -130,8 +141,22 @@ export function LeezenboxChart({ data }: LeezenboxChartProps) {
     switch (timeRange) {
       case "24h":
         startDate.setHours(startDate.getHours() - 24);
-        intervalMinutes = 60; // 1 hour intervals for 24h view
-        break;
+        // For 24h view, show individual data points without aggregation
+        const filteredData24h = data.filter((item) => {
+          const itemDate = new Date(item.received_at);
+          return itemDate >= startDate && itemDate <= endDate;
+        });
+
+        return filteredData24h
+          .map((item) => ({
+            timestamp: item.received_at,
+            bicycles: item.predictions.length,
+          }))
+          .sort(
+            (a, b) =>
+              new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+          );
+
       case "7d":
         startDate.setDate(startDate.getDate() - 7);
         intervalMinutes = 4 * 60; // 4 hour intervals for 7d view
@@ -149,13 +174,13 @@ export function LeezenboxChart({ data }: LeezenboxChartProps) {
         intervalMinutes = 24 * 60;
     }
 
-    // Filter data to the time range first
+    // Filter data to the time range first (for non-24h views)
     const filteredData = data.filter((item) => {
-      const itemDate = new Date(item.timestamp);
+      const itemDate = new Date(item.received_at);
       return itemDate >= startDate && itemDate <= endDate;
     });
 
-    // Generate complete time series with regular intervals
+    // Generate complete time series with regular intervals (for non-24h views)
     const timeSeriesData = [];
     const currentTime = new Date(startDate);
     const intervalMs = intervalMinutes * 60 * 1000;
@@ -166,31 +191,24 @@ export function LeezenboxChart({ data }: LeezenboxChartProps) {
 
       // Find all data points that fall within this interval
       const dataPointsInInterval = filteredData.filter((item) => {
-        const itemDate = new Date(item.timestamp);
+        const itemDate = new Date(item.received_at);
         return itemDate >= intervalStart && itemDate < intervalEnd;
       });
 
       // Calculate average bicycles and saddles per observation in this interval
       let avgBicycles = 0;
-      let avgSaddles = 0;
 
       if (dataPointsInInterval.length > 0) {
         const totalBicycles = dataPointsInInterval.reduce((sum, item) => {
-          return sum + item.predictions.filter((p) => p.category === 1).length;
-        }, 0);
-
-        const totalSaddles = dataPointsInInterval.reduce((sum, item) => {
-          return sum + item.predictions.filter((p) => p.category === 2).length;
+          return sum + item.predictions.length;
         }, 0);
 
         avgBicycles = Math.round(totalBicycles / dataPointsInInterval.length);
-        avgSaddles = Math.round(totalSaddles / dataPointsInInterval.length);
       }
 
       timeSeriesData.push({
         timestamp: intervalStart.toISOString(),
         bicycles: avgBicycles,
-        saddles: avgSaddles,
       });
 
       currentTime.setMinutes(currentTime.getMinutes() + intervalMinutes);
@@ -357,7 +375,7 @@ export function LeezenboxChart({ data }: LeezenboxChartProps) {
               axisLine={false}
               tickMargin={8}
               minTickGap={
-                timeRange === "24h" ? 80 : timeRange === "7d" ? 60 : 40
+                timeRange === "24h" ? 120 : timeRange === "7d" ? 60 : 40
               }
               interval="preserveStartEnd"
               tickFormatter={formatXAxisTick}
@@ -402,9 +420,9 @@ export function LeezenboxChart({ data }: LeezenboxChartProps) {
             <DialogDescription>
               {selectedDataPoint && (
                 <>
-                  Timestamp: {formatTooltipLabel(selectedDataPoint.timestamp)}
+                  Timestamp: {formatTooltipLabel(selectedDataPoint.received_at)}
                   <br />
-                  Visitors detected: {selectedDataPoint.predictions.length}
+                  Bicycles detected: {selectedDataPoint.predictions.length}
                 </>
               )}
             </DialogDescription>

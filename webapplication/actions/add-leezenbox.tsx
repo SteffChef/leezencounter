@@ -10,6 +10,7 @@ const pool = new Pool({
 export interface CreateLeezenboxData {
   name: string;
   address: string;
+  ttn_location_key: string;
   postcode: string;
   city: string;
   latitude: number;
@@ -24,12 +25,13 @@ export async function addLeezenbox(
   try {
     const result = await pool.query(
       `INSERT INTO leezenbox 
-       (name, address, postcode, city, latitude, longitude, num_lockers_with_power, capacity) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
+       (name, address, ttn_location_key, postcode, city, latitude, longitude, num_lockers_with_power, capacity) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
        RETURNING *`,
       [
         data.name,
         data.address,
+        data.ttn_location_key,
         data.postcode,
         data.city,
         data.latitude,

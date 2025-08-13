@@ -1,6 +1,6 @@
 import HomePageSection from "@/components/homepage-section";
 import TiltedCard from "@/components/tilted-card";
-import { LayoutDashboard, MapIcon, Settings, Bike } from "lucide-react";
+import { LayoutDashboard, MapIcon, Bike } from "lucide-react";
 import Link from "next/link";
 import { Separator } from "@/components/ui/separator";
 import Image from "next/image";
@@ -21,11 +21,11 @@ export default function Home() {
       url: "/map",
       icon: MapIcon,
     },
-    {
-      title: "Settings",
-      url: "/settings",
-      icon: Settings,
-    },
+    // {
+    //   title: "Settings",
+    //   url: "/settings",
+    //   icon: Settings,
+    // },
   ];
 
   const homePageSections = [
@@ -90,7 +90,7 @@ export default function Home() {
           }
         />
       </div>
-      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 2xl:px-52">
+      <div className="grid grid-cols-2 lg:grid-cols-3  gap-4 2xl:px-52">
         {buttons.map((button) => (
           <Link
             key={button.title}

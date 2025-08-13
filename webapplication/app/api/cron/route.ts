@@ -13,7 +13,7 @@ export async function GET() {
       process.env.TTN_API_URL ||
       "https://eu1.cloud.thethings.network/api/v3/as/applications/leezencounter/packages/storage/uplink_message";
     const ttnApiKey = process.env.TTN_API_KEY;
-    const timeFrame = process.env.TTN_TIME_FRAME || "48h";
+    const timeFrame = process.env.TTN_TIME_FRAME || "36h";
 
     // Check if API key exists
     if (!ttnApiKey) {
@@ -114,8 +114,9 @@ export async function GET() {
             total_detected,
             predictions
           ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-          ON CONFLICT (device_id, timestamp) 
+          ON CONFLICT (device_id, received_at) 
           DO UPDATE SET 
+            device_id = EXCLUDED.device_id,
             received_at = EXCLUDED.received_at,
             confidence_threshold = EXCLUDED.confidence_threshold,
             location = EXCLUDED.location,
@@ -126,7 +127,7 @@ export async function GET() {
         await pool.query(insertQuery, [
           dataItem.device_id,
           dataItem.received_at,
-          dataItem.confidence_threshold,
+          0.5,
           dataItem.location,
           dataItem.timestamp,
           dataItem.total_detected,

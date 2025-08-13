@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Trash } from "lucide-react";
 import { deleteLeezenbox } from "@/actions/delete-leezenbox";
+import { toast } from "sonner";
 
 interface DeleteLeezenboxButtonProps {
   leezenboxId: number;
@@ -38,6 +39,17 @@ const DeleteLeezenboxButton: React.FC<DeleteLeezenboxButtonProps> = ({
       if (success) {
         // Navigate back to the leezenboxes list page after successful deletion
         router.push("/leezenboxes");
+        toast.success(
+          `Leezenbox ${
+            leezenboxName ? `"${leezenboxName}"` : ""
+          } deleted successfully!`
+        );
+      } else {
+        toast.error(
+          `Failed to delete Leezenbox ${
+            leezenboxName ? `"${leezenboxName}"` : ""
+          }.`
+        );
         // Optionally reload the page to ensure fresh data
         router.refresh();
       }

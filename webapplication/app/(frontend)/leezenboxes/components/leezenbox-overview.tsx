@@ -21,8 +21,8 @@ const LeezenboxOverview: React.FC<LeezenboxOverviewProps> = ({
   return (
     <>
       <div className="flex flex-col gap-4">
-        <h1 className="text-xl font-bold">Leezenbox Overview</h1>
-        <div className="w-full flex justify-end">
+        <div className="w-full flex justify-between items-center">
+          <h1 className="text-xl font-bold">Leezenbox Overview</h1>
           <Button className="cursor-pointer" onClick={() => setSheetOpen(true)}>
             Add Leezenbox
           </Button>

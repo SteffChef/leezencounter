@@ -23,6 +23,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { addLeezenbox } from "@/actions/add-leezenbox";
+import { toast } from "sonner";
 
 // Zod schema for form validation
 const leezenboxSchema = z.object({
@@ -34,6 +35,10 @@ const leezenboxSchema = z.object({
     .string()
     .min(1, "Address is required")
     .max(255, "Address must be less than 255 characters"),
+  ttn_location_key: z
+    .string()
+    .min(1, "TTN Location Key must be at least 1 character long")
+    .max(100, "TTN Location Key must be less than 100 characters"),
   postcode: z
     .string()
     .min(1, "Postcode is required")
@@ -78,6 +83,7 @@ const AddLeezenboxSheet: React.FC<AddLeezenboxSheetProps> = ({
     defaultValues: {
       name: "",
       address: "",
+      ttn_location_key: "",
       postcode: "",
       city: "",
       latitude: 0,
@@ -102,10 +108,16 @@ const AddLeezenboxSheet: React.FC<AddLeezenboxSheetProps> = ({
         }
 
         // Reload the page to refresh the Leezenboxes data
+        toast.success("Leezenbox added successfully!");
+        // wait 1 second before reloading
+        await new Promise((resolve) => setTimeout(resolve, 1000));
         window.location.reload();
       }
     } catch (error) {
       console.error("Error submitting form:", error);
+      toast.error(
+        "Failed to add Leezenbox. Please check the details and try again."
+      );
       // You could add toast notification here to show the error to the user
     }
   };
@@ -162,6 +174,23 @@ const AddLeezenboxSheet: React.FC<AddLeezenboxSheetProps> = ({
                   </FormControl>
                   <FormDescription>
                     Street address of the Leezenbox
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="ttn_location_key"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>TTN Location Key</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g., hiltrup" {...field} />
+                  </FormControl>
+                  <FormDescription>
+                    Unique identifier for the Leezenbox location
                   </FormDescription>
                   <FormMessage />
                 </FormItem>

@@ -7,6 +7,7 @@ export interface Participant {
 export interface Leezenbox {
   id: number;
   name: string;
+  ttn_location_key: string; // Added for TTN integration
   address: string;
   postcode: string;
   city: string;
@@ -17,7 +18,6 @@ export interface Leezenbox {
 }
 
 export interface Prediction {
-  category: number;
   bbox: number[];
   confidence: number;
 }
@@ -25,7 +25,7 @@ export interface Prediction {
 export interface DataPoint {
   id: number;
   leezenbox_id: number;
-  timestamp: string; // ISO date string
+  received_at: string; // ISO date string
   predictions: Prediction[];
 }
 
@@ -41,8 +41,8 @@ export interface LeezenboxOccupancies {
 // TTN (The Things Network) related types
 export interface TTNPrediction {
   bbox: [number, number, number, number]; // [x, y, width, height]
-  category: number; // 0: bike, 1: saddle, 2: other
-  confidence: number; // confidence score between 0 and 1
+  // category: number; // 0: bike, 1: saddle, 2: other
+  confidence?: number; // confidence score between 0 and 1
 }
 
 export interface ProcessedDataItem {
