@@ -54,6 +54,7 @@ const chartConfig = {
 
 interface LeezenboxChartProps {
   data: DataPoint[];
+  backgroundImageSrc?: string;
 }
 
 interface ChartClickEvent {
@@ -65,7 +66,10 @@ interface ChartClickEvent {
   }>;
 }
 
-export function LeezenboxChart({ data }: LeezenboxChartProps) {
+export function LeezenboxChart({
+  data,
+  backgroundImageSrc,
+}: LeezenboxChartProps) {
   const isMobile = useIsMobile();
   const [timeRange, setTimeRange] = React.useState("3m");
   const [selectedDataPoint, setSelectedDataPoint] =
@@ -432,7 +436,7 @@ export function LeezenboxChart({ data }: LeezenboxChartProps) {
               predictions={
                 selectedDataPoint ? selectedDataPoint?.predictions : []
               }
-              backgroundImageSrc="/assets/blank_image.jpg"
+              backgroundImageSrc={backgroundImageSrc}
             />
           </div>
         </DialogContent>

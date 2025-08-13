@@ -13,7 +13,7 @@ const BorderBox: React.FC<BorderBoxProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
 
-  // Original image dimensions
+  // Original image dimensions (4:3 aspect ratio)
   const ORIGINAL_WIDTH = 1600;
   const ORIGINAL_HEIGHT = 1200;
 
@@ -45,6 +45,7 @@ const BorderBox: React.FC<BorderBoxProps> = ({
     }
 
     // Draw bounding boxes
+    // Expected bbox format: [center_x, center_y, width, height] (YOLO format, normalized 0-1)
     predictions.forEach((prediction) => {
       const [x_center, y_center, width, height] = prediction.bbox;
 

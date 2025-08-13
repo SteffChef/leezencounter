@@ -170,7 +170,14 @@ const LeezenboxByIdPage = ({ params }: LeezenboxByIdPageProps) => {
           {refreshing ? "Refreshing..." : "Refresh Data"}
         </Button>
       </div>
-      <LeezenboxChart data={data} />
+      <LeezenboxChart
+        data={data}
+        backgroundImageSrc={
+          leezenbox.ttn_location_key == "Rudolf-Harbig-Weg"
+            ? "/assets/Promenade.jpg"
+            : "/assets/blank_image.jpg"
+        }
+      />
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         <LeezenboxStatCard
           description="Current Occupancy"

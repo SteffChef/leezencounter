@@ -1,9 +1,4 @@
-import {
-  DataPoint,
-  LeezenboxOccupancies,
-  LeezenboxOccupancy,
-  Leezenbox,
-} from "./types";
+import { DataPoint, LeezenboxOccupancies, LeezenboxOccupancy } from "./types";
 
 // Seeded random number generator for consistent results
 function seededRandom(seed: number): number {
@@ -34,18 +29,30 @@ function generatePredictionsForHour(
   }
 
   for (let i = 0; i < detectionCount; i++) {
-    const baseX = random();
-    const baseY = random();
+    // Generate center coordinates and dimensions in normalized 0-1 space
+    const center_x = 0.1 + random() * 0.8; // Center X between 0.1 and 0.9
+    const center_y = 0.1 + random() * 0.8; // Center Y between 0.1 and 0.9
     const width = 0.04 + random() * 0.12; // Width between 0.04 and 0.16 (realistic bike width)
     const height = 0.06 + random() * 0.14; // Height between 0.06 and 0.2 (realistic bike height)
 
-    // Generate bicycle prediction (no categories - just bicycles)
+    // Ensure the bbox doesn't go outside the image bounds
+    const clampedCenterX = Math.max(
+      width / 2,
+      Math.min(1 - width / 2, center_x)
+    );
+    const clampedCenterY = Math.max(
+      height / 2,
+      Math.min(1 - height / 2, center_y)
+    );
+
+    // Generate bicycle prediction in YOLO format (center_x, center_y, width, height)
+    // All coordinates are normalized to 0-1 range
     predictions.push({
       bbox: [
-        Math.max(0, Math.min(1 - width, baseX)), // x
-        Math.max(0, Math.min(1 - height, baseY)), // y
-        width, // width
-        height, // height
+        clampedCenterX, // center_x (normalized 0-1)
+        clampedCenterY, // center_y (normalized 0-1)
+        width, // width (normalized 0-1)
+        height, // height (normalized 0-1)
       ],
       confidence: 0.7 + random() * 0.25, // Confidence between 0.7 and 0.95
     });
