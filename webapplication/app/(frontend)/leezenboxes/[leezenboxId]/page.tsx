@@ -225,7 +225,13 @@ const LeezenboxByIdPage = ({ params }: LeezenboxByIdPageProps) => {
       <Separator className="my-4" />
       <h2 className="text-xl font-bold text-red-500">Danger Zone</h2>
       <div>
-        {leezenboxId && <DeleteLeezenboxButton leezenboxId={leezenboxId} />}
+        {leezenboxId && (
+          <DeleteLeezenboxButton 
+            leezenboxId={leezenboxId} 
+            leezenboxName={leezenbox.name}
+            isDefaultLocation={leezenbox.default_location}
+          />
+        )}
       </div>
     </div>
   );
