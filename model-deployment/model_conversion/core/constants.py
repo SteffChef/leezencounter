@@ -10,7 +10,7 @@ BATCH_SIZE: Final[int] = 1
 CLASS_NAMES: Final[Dict[int, str]] = {0: 'bicycle', 1: 'saddle'}
 
 CONF_THRESHOLD: Final[float] = 0.25
-IOU_THRESHOLD: Final[float] = 0.50
+IOU_THRESHOLD: Final[float] = 0.70
 MAX_DETECTIONS: Final[int] = 100
 
 MODEL_INPUT_SHAPE: Final[Tuple[int, int]] = (IMAGE_SIZE, IMAGE_SIZE)

@@ -8,14 +8,16 @@ import sys
 from model_conversion.utils.model_evaluation import ESPEvaluator
 from model_conversion.core.paths import (
     CALIBRATION_IMAGE_DIR, GROUND_TRUTH_CSV_DIR,
-    QUANTIZED_MODEL_PRED_DIR, BASE_MODEL_PRED_DIR,
+    QUANTIZED_MODEL_PRED_DIR, BASE_MODEL_PRED_DIR,ESP_MODEL_PRED_DIR
 )
 from model_conversion.core.constants import CLASS_NAMES
 
-PREDICTION_DIR = QUANTIZED_MODEL_PRED_DIR
+#PREDICTION_DIR = QUANTIZED_MODEL_PRED_DIR
 #PREDICTION_DIR = BASE_MODEL_PRED_DIR
-VISUALIZATION_OUTPUT_DIR = Path("./evaluation_visuals_quantized")
+PREDICTION_DIR = ESP_MODEL_PRED_DIR
+#VISUALIZATION_OUTPUT_DIR = Path("./evaluation_visuals_quantized")
 #VISUALIZATION_OUTPUT_DIR = Path("./evaluation_visuals_base")
+VISUALIZATION_OUTPUT_DIR = Path("./evaluation_visuals_esp")
 IOU_THRESHOLD = 0.50 # To visualize AP@50
 
 NAME_TO_ID = {v: k for k, v in CLASS_NAMES.items()}

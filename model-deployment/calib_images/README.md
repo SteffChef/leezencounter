@@ -1,1 +1,0 @@
-Add your uncompressed calibration images here. The images should be in the format of `*.jpg`. The images will be used to calibrate the model for better accuracy.
