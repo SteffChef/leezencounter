@@ -1,9 +1,9 @@
 # Model Conversion
 
 ## Conversion Requirements
-- Install requirements with pip:
+- Install requirements with uv:
   
-      pip install -r requirements.txt
+      uv sync
 
 - Ensure you have pulled the dvc dataset
 - Put a `yolo11n.pt` model in the `model-deployment/coco_detect/models/` folder
@@ -37,7 +37,7 @@
 This deployment is tested for ESP32S3.
 
 - It will use the `.espdl` file from `model-deployment/coco_detect/models/` automatically. 
-- Ensure the ESP-DL Environment is correctly setup and you are in your virtual environment to deploy the program to your ESP.
+- Ensure the ESP-DL Environment is correctly setup and you are in your virtual environment to deploy the program to your ESP. (See [here](https://pinto-bobcat-b66.notion.site/Setup-Instructions-ESP-DL-1cc043907cbe803e8b89fe3b5594d13f) for instructions)
 - Move into `./yolo11_detect/` to build the program. Use the following command to build the program:
  
 
