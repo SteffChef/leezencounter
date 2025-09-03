@@ -5,13 +5,31 @@ from model_conversion.core.paths import (
     ORIGINAL_IMAGE_DIR,
     ORIGINAL_LABEL_DIR,
     CALIBRATION_IMAGE_DIR,
-    GROUND_TRUTH_CSV_DIR
+    GROUND_TRUTH_CSV_DIR,
+    DATA_DIR,
+    MODELS_DIR,
+    BASE_MODEL_PRED_DIR,
+    QUANTIZED_MODEL_PRED_DIR
 )
 
 
 CURRENT_FILE_PATH = Path(__file__).resolve()
 PROJECT_ROOT = CURRENT_FILE_PATH.parents[2]
 DEFAULT_TEST_LIST_PATH = PROJECT_ROOT / "model-training" / "datasets" / "combined_preprocessed" / "YOLO" / "autosplit_test.txt"
+
+def create_project_dirs() -> None:
+    print("Ensuring project directories exist...")
+    _DIRS_TO_CREATE = [
+        DATA_DIR, MODELS_DIR,
+        CALIBRATION_IMAGE_DIR, ORIGINAL_IMAGE_DIR, ORIGINAL_LABEL_DIR,
+        GROUND_TRUTH_CSV_DIR, BASE_MODEL_PRED_DIR, QUANTIZED_MODEL_PRED_DIR
+    ]
+
+    for path in _DIRS_TO_CREATE:
+        path.mkdir(parents=True, exist_ok=True)
+    print("All directories are ready.")
+
+
 
 def cleanup_directory(target_dir: Path, keep_list_file: Path):
     """
@@ -63,6 +81,8 @@ def main():
     Main script to orchestrate the data preparation pipeline.
     """
     print("--- Starting Data Preparation Pipeline ---")
+    print(f"  Creating necessary directories if they don't exist...")
+    create_project_dirs()
 
     print(f"\n[STEP 1/3] Resizing images to {MODEL_INPUT_SHAPE}...")
     print(f"  - Input directory:  {ORIGINAL_IMAGE_DIR}")

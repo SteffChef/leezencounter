@@ -96,9 +96,8 @@ class ImageResizeProcessor:
                 print(f"Warning: Could not read image {img_path}, skipping.")
                 continue
 
-            # Resize the image. Note: cv2.resize expects (width, height)
             resized_image = cv2.resize(image, (self.target_size[1], self.target_size[0]),
-                                       interpolation=cv2.INTER_AREA)
+                                       interpolation=cv2.INTER_NEAREST)
 
             output_path = output_dir / img_path.name
             cv2.imwrite(str(output_path), resized_image)
@@ -115,7 +114,6 @@ class GTLabelConverter:
 
     def __init__(self, class_names_map: Dict[int, str]):
         self.class_names_map = class_names_map
-        # No longer need target_shape here, as it's passed during processing.
 
     def _find_corresponding_image(self, label_path: Path, image_dir: Path) -> Path:
         """Finds the image file corresponding to a label file."""

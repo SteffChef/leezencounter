@@ -24,15 +24,3 @@ ESP_MODEL_PRED_DIR: Final[Path] = DATA_DIR / "preds_esp_model"
 BASE_MODEL_PT_PATH: Final[Path] = MODELS_DIR / "yolo11n.pt"
 ONNX_MODEL_PATH: Final[Path] = MODELS_DIR / "yolo11n.onnx"
 ESPDL_MODEL_PATH: Final[Path] = MODELS_DIR / "model.espdl"
-
-_DIRS_TO_CREATE = [
-    DATA_DIR, MODELS_DIR,
-    CALIBRATION_IMAGE_DIR, ORIGINAL_IMAGE_DIR, ORIGINAL_LABEL_DIR,
-    GROUND_TRUTH_CSV_DIR, BASE_MODEL_PRED_DIR, QUANTIZED_MODEL_PRED_DIR
-]
-
-def create_project_dirs() -> None:
-    print("Ensuring project directories exist...")
-    for path in _DIRS_TO_CREATE:
-        path.mkdir(parents=True, exist_ok=True)
-    print("All directories are ready.")
