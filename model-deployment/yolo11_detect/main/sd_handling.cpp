@@ -74,7 +74,6 @@ esp_err_t init_sd_card() {
     sd_mounted = true;
     ESP_LOGI(TAG, "SD card mounted successfully");
 
-    // sdmmc_card_print_info(stdout, card);
     return ESP_OK;
 }
 
