@@ -38,16 +38,7 @@ std::string create_json_payload(const std::list<dl::detect::result_t>& detect_re
 
     // 1. Add static and timestamp information
     cJSON_AddStringToObject(root, "device_id", "cam-01");
-    cJSON_AddStringToObject(root, "location", "Rudolf-Harbig-Weg");
-    // cJSON_AddNumberToObject(root, "confidence_threshold", confidence_threshold);
-
-    // Generate ISO 8601 timestamp
-    // char time_buf[sizeof("2025-07-08T16:23:12Z")];
-    // time_t now;
-    // time(&now);
-    // strftime(time_buf, sizeof(time_buf), "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
-    // cJSON_AddStringToObject(root, "timestamp", time_buf);
-
+    cJSON_AddStringToObject(root, "location", "placeholder-location");
 
     // 2. Create the predictions array
     cJSON *predictions = cJSON_CreateArray();
