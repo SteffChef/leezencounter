@@ -1,38 +1,50 @@
-# Model Deployment to ESP32S3
+# Model Conversion
+
+## Conversion Requirements
+- Install requirements with uv:
+  
+      uv sync
+
+- Ensure you have pulled the dvc dataset
+- Put a `yolo11n.pt` model in the `model-deployment/coco_detect/models/` folder
+- Optional: Change parameters of paths and constants in `model-deployment/model_conversion/core/`
+
+## Conversion
+- Prepare the data for model conversion:
+
+      python -m model_conversion.prepare_data
+
+- Evaluate model and generate `.espdl` file
+
+      python -m model_conversion.run_evaluation
+
+- Optional: Visualize performance of model on images based on predictions (for specifc class):
+
+      python -m model_conversion.visualize_evaluation --class_name bicycle  
+
+- Optional: Alternatively, you can run the `model_deployment.ipynb` notebook to perform most of the steps from above. You might need to change some parameters in the notebook.
+
+## Deployment Requirements
+- Ensure you have generated the `.espdl` file, which when doing the steps above is automatically placed it in the `model-deployment/coco_detect/models/` folder
+- You can make a prediction on one image with this ESP32S3 script. To change the image, copy an image of size 640x640 named bikes.jpg into `model-deployment/yolo11_detect/main/`.
+- Optional: Change parameters for the detection thresholds in `model-deployment/coco_detect/coco_detect.cpp`. There, the first parameters after `m_model` represents the confidence and IoU threshold and the max detection value, in this case 25%, 70% and 100 respectively:
+
+
+    new dl::detect::yolo11PostProcessor(m_model, 0.25, 0.7, 100, {{8, 8, 4, 4}, {16, 16, 8, 8}, {32, 32, 16, 16}});
+
+
+## Deployment
 This deployment is tested for ESP32S3.
 
-## Setup
-1. You can go through the `model_deployment.ipynb` to generate an `.onnx` and `.espdl` file. They are automatically placed at the right folders. To use it, make sure that the model, in this case `yolo11n.pt`, is in the folder `./coco_detect/models/`.
-   1. For now, the pipeline is optimized for deployment of a `yolo11n.pt` model
-   2. If you want to use a different model, you need to change the conversion to the `.onnx`as in `torch.onnx.export(...)`
-2. Currently, the image predicted on the device is already in the right folder. To change the image, copy an image of size 640x640 named bikes.jpg into `./yolo11_detect/main/`. You can use `model_deployment.ipynb` to compress the image.
-3. Ensure ESP-DL Environment is correctly setup and you are in your virtual environment to deploy the program to your ESP.
-4. Move into `./yolo11_detect/` to build the program. Use the following command to build the program:
+- It will use the `.espdl` file from `model-deployment/coco_detect/models/` automatically. 
+- Ensure the ESP-DL Environment is correctly setup and you are in your virtual environment to deploy the program to your ESP. (See [here](https://pinto-bobcat-b66.notion.site/Setup-Instructions-ESP-DL-1cc043907cbe803e8b89fe3b5594d13f) for instructions)
+- Move into `./yolo11_detect/` to build the program. Use the following command to build the program:
  
 
     idf.py fullclean build flash monitor
 
 
-## Tips
-If you just quickly want to test a `.espdl` model, put it in the following path. Just overwrite the existing model but keep the same name. Make sure to store the old model, if you need it later.
-
-    ./coco_detect/models/yolo11n.espdl
-
-Unless you just want to override an existing model with your new model and use the same name as the old model, you can also add models for "long term use". To add a new model inside the coco_detect you need to change the following files. Take a look at `CUSTOM_YOLO11N` for reference.
-- `./coco_detect/CMakeLists.txt`
-- `./coco_detect/Kconfig`
-- `./coco_detect/coco_detect.cpp`
-- `./coco_detect/coco_detect.hpp`
-- `./coco_detect/models/<YOUR-MODEL>.espdl`
-
-The threshold of the model inside coco_detect can be changed in this file `models/coco_detect/coco_detect.cpp`. There the first parameter after `m_model` represents the threshold value, in this case 10%:
-
-    new dl::detect::yolo11PostProcessor(m_model, 0.10, 0.7, 10, {{8, 8, 4, 4}, {16, 16, 8, 8}, {32, 32, 16, 16}});
-
-
-If you want to change the names of models or test-images, you have to modify a lot of code in the corresponding files. Therefore, for testing you should just name it as an existing model / image.
-
-## Bugs before build
+### Bugs before build
 - if the build is crashing, it might be due to a too big image. Reduce the size with the help of the `model_deployment.ipynb` or some other software. The yolo11n is trained on images of size 640x640. Smaller resolutions also work.
 - make sure you are in your esp-idf virtual environment with Python 3.10
 - sometimes you have to set the IDF_TARGET again:
@@ -40,3 +52,5 @@ If you want to change the names of models or test-images, you have to modify a l
 
     unset IDF_TARGET
     idf.py set-target esp32s3
+
+

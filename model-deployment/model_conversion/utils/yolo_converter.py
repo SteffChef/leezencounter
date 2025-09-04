@@ -1,14 +1,20 @@
+import inspect
+import shutil
+from pathlib import Path
+from typing import Final
+
 import onnx
 import torch
+import yaml
 from ultralytics import YOLO
-from ultralytics.engine.exporter import Exporter, try_export, arange_patch
-from ultralytics.nn.modules import Detect, Attention
+from ultralytics.engine.exporter import Exporter, arange_patch, try_export
+from ultralytics.nn.modules import Attention, Detect
 from ultralytics.utils import LOGGER, colorstr
 from ultralytics.utils.checks import check_requirements
 from ultralytics.utils.torch_utils import get_latest_opset
 
 
-class ESP_Detect(Detect):
+class EspDetect(Detect):
     def forward(self, x):
         """Returns predicted bounding boxes and class probabilities respectively."""
         # self.nl = 3
@@ -24,7 +30,7 @@ class ESP_Detect(Detect):
         return box0, score0, box1, score1, box2, score2
 
 
-class ESP_Attention(Attention):
+class EspAttention(Attention):
     def forward(self, x):
         """
         Forward pass of the Attention module.
@@ -48,7 +54,7 @@ class ESP_Attention(Attention):
         return x
 
 
-class ESP_Detect_Exporter(Exporter):
+class EspDetectExporter(Exporter):
     """
     adapted from ultralytics for detection task
     """
@@ -112,7 +118,7 @@ class ESP_Detect_Exporter(Exporter):
         return f, model_onnx
 
 
-class ESP_YOLO(YOLO):
+class EspYOLO(YOLO):
     def export(
         self,
         **kwargs,
@@ -126,14 +132,84 @@ class ESP_YOLO(YOLO):
             "verbose": False,
         }
         args = {**self.overrides, **custom, **kwargs, "mode": "export"}
-        return ESP_Detect_Exporter(overrides=args, _callbacks=self.callbacks)(model=self.model)
+        return EspDetectExporter(overrides=args, _callbacks=self.callbacks)(model=self.model)
 
 
-model = ESP_YOLO("../models/yolo11n.pt")
-for m in model.modules():
-    if isinstance(m, Attention):
-        m.forward = ESP_Attention.forward.__get__(m)
-    if isinstance(m, Detect):
-        m.forward = ESP_Detect.forward.__get__(m)
+class YoloConverter:
+    """Convert to export Ultralytics YOLO models to ONNX"""
 
-model.export(format="onnx", simplify=True, opset=13, dynamic=False, imgsz=640)
+    def __init__(
+        self,
+        half: bool,
+        dynamic: bool,
+        simplify: bool,
+        opset: int,
+        nms: bool,
+        batch: int,
+        device: str,
+        imgsz: int | tuple[int, int] = 640,
+    ) -> None:
+        self._format: Final[str] = "onnx"
+        self.imgsz = imgsz
+        self.device = device
+        self.half = half
+        self.dynamic = dynamic
+        self.simplify = simplify
+        self.opset = opset
+        self.nms = nms
+        self.batch = batch
+
+        # create export config from user-set parameters
+        init_params = inspect.signature(self.__init__).parameters  # type: ignore
+        export_keys = [k for k in init_params if k != "self"]
+
+        self.export_config = {k: getattr(self, k) for k in export_keys if getattr(self, k) is not None}
+
+    def to_onnx(self, torch_model_path: Path, onnx_export_path: Path) -> None:
+        """
+        Exports an Ultralytics YOLO model to ONNX format
+
+        :param torch_model_path: Import path to .pt model file
+        :param onnx_export_path: Path to export directory
+        """
+        if not torch_model_path.exists():
+            raise FileNotFoundError(f"No such file: {torch_model_path.as_posix()}")
+        if not torch_model_path.is_file():
+            raise ValueError(f"{torch_model_path.as_posix()} is not a file")
+        if torch_model_path.suffix != ".pt":
+            raise ValueError(f"Expected torch model (.pt), received {torch_model_path.suffix}")
+        if not onnx_export_path.is_dir():
+            raise NotADirectoryError(f"{onnx_export_path.as_posix()} is not a directory")
+
+        # load .pt model from path
+        model = EspYOLO(torch_model_path.as_posix())
+        for module in model.modules():
+            if isinstance(module, Attention):
+                module.forward = EspAttention.forward.__get__(module)
+            if isinstance(module, Detect):
+                module.forward = EspDetect.forward.__get__(module)
+
+        # export YOLO model from export config
+        export_path = Path(model.export(**self.export_config, format=self._format))
+
+        destination_file = onnx_export_path / export_path.name # overwriting behavior is intended
+
+        # move .onnx model to provided export path
+        shutil.move(str(export_path), str(destination_file))
+
+    @classmethod
+    def from_config(cls, yml_config: Path | str) -> "YoloConverter":
+        """
+        Initialize YoloConverter instance from YAML config.
+
+        :param yml_config: Path to YAML config file
+        """
+        if isinstance(yml_config, str):
+            yml_config = Path(yml_config)
+        if not isinstance(yml_config, Path):
+            raise ValueError("Invalid type for yml_config, expected Path or str")
+
+        with yml_config.open("r") as f:
+            config = yaml.safe_load(f)
+
+        return cls(**config)
