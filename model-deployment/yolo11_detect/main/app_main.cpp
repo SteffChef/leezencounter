@@ -8,6 +8,9 @@ const char *TAG = "yolo11n";
 
 extern "C" void app_main(void)
 {
+#if CONFIG_COCO_DETECT_MODEL_IN_SDCARD
+    ESP_ERROR_CHECK(bsp_sdcard_mount());
+#endif
 
     dl::image::jpeg_img_t jpeg_img = {.data = (void *)bikes_jpg_start, .data_len = (size_t)(bikes_jpg_end - bikes_jpg_start)};
     auto img = sw_decode_jpeg(jpeg_img, dl::image::DL_IMAGE_PIX_TYPE_RGB888);
@@ -29,4 +32,7 @@ extern "C" void app_main(void)
     delete detect;
     heap_caps_free(img.data);
 
+#if CONFIG_COCO_DETECT_MODEL_IN_SDCARD
+    ESP_ERROR_CHECK(bsp_sdcard_unmount());
+#endif
 }

@@ -1,4 +1,3 @@
-import { getLeezenboxs } from "@/actions/get-leezenboxs";
 import {
   Card,
   CardDescription,
@@ -7,11 +6,18 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { Leezenbox, LeezenboxOccupancies } from "@/types";
 import Link from "next/link";
 
-const LeezenboxesOverview = async () => {
-  const leezenboxes = await getLeezenboxs();
-  const occupancy = 29; // Example occupancy value
+interface LeezenboxesOverviewProps {
+  leezenboxes: Leezenbox[];
+  leezenboxOccupancies: LeezenboxOccupancies;
+}
+
+const LeezenboxesOverview: React.FC<LeezenboxesOverviewProps> = async ({
+  leezenboxes,
+  leezenboxOccupancies,
+}) => {
   return (
     <Card className="@container/card">
       <CardHeader>
@@ -23,24 +29,30 @@ const LeezenboxesOverview = async () => {
           <span className="@[540px]/card:hidden">Selected period</span>
         </CardDescription>
       </CardHeader>
-      <CardFooter className="flex-col items-start gap-1.5 text-sm">
+      <CardFooter className="grid grid-cols-1 lg:grid-cols-2 gap-4 text-sm">
         {leezenboxes.map((leezenbox) => (
           <Link
             href={`/leezenboxes/${leezenbox.id}`}
             key={leezenbox.id}
-            className="w-full mb-2 px-4 py-2 rounded-lg shadow-sm hover:shadow-md transition dark:shadow-gray-800 hover:bg-sidebar border border-accent"
+            className="w-full px-4 py-2 rounded-lg shadow-sm hover:shadow-md transition dark:shadow-gray-800 hover:bg-sidebar border border-accent"
           >
             <h3 className="text-md font-medium">{leezenbox.name}</h3>
             <p className="text-sm text-gray-500">
-              {occupancy} / {leezenbox.capacity}
+              {leezenboxOccupancies[leezenbox.id]?.bikes || 0} /{" "}
+              {leezenbox.capacity}
             </p>
             <Progress
               value={
-                (occupancy / leezenbox.capacity) * 100 < 100
-                  ? (occupancy / leezenbox.capacity) * 100
+                ((leezenboxOccupancies[leezenbox.id]?.bikes || 0) /
+                  leezenbox.capacity) *
+                  100 <
+                100
+                  ? ((leezenboxOccupancies[leezenbox.id]?.bikes || 0) /
+                      leezenbox.capacity) *
+                    100
                   : 100
               }
-              className={` w-full`}
+              className={`w-full`}
             />
           </Link>
         ))}

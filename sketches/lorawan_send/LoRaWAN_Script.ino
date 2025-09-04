@@ -25,12 +25,82 @@
 */
 
 #include "config.h"
+#include <BLEDevice.h>
+#include <BLEUtils.h>
+#include <BLEServer.h>
+#include <BLE2902.h>
+
+#define SERVICE_UUID        "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
+#define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
+
+// Global variables
+BLEServer* pServer = NULL;
+BLECharacteristic* pCharacteristic = NULL;
+bool deviceConnected = false;
+bool oldDeviceConnected = false;
+
+class MyServerCallbacks: public BLEServerCallbacks {
+    void onConnect(BLEServer* pServer) {
+      deviceConnected = true;
+      Serial.println("*** Device Connected! ***");
+    };
+
+    void onDisconnect(BLEServer* pServer) {
+      deviceConnected = false;
+      Serial.println("*** Device Disconnected! ***");
+      // Restart advertising when device disconnects
+      pServer->startAdvertising();
+    }
+};
+
+void sendLoRaUplink(String message) {
+  Serial.println(F("Preparing LoRa uplink"));
+
+  // Convert String to byte array
+  uint8_t payload[message.length()];
+  message.getBytes(payload, message.length() + 1);
+
+  // Send it
+  int16_t state = node.sendReceive(payload, sizeof(payload));
+
+  debug(state < RADIOLIB_ERR_NONE, F("Error in sendReceive"), state, false);
+
+  if (state > 0) {
+    Serial.println(F("Received a downlink"));
+  } else {
+    Serial.println(F("No downlink received"));
+  }
+
+  Serial.println();
+}
+
+// Characteristic callback class for handling write operations
+class MyCallbacks: public BLECharacteristicCallbacks {
+    void onWrite(BLECharacteristic *pCharacteristic) {
+      String rxValue = pCharacteristic->getValue();
+
+      if (rxValue.length() > 0) {
+        Serial.println("*********");
+        Serial.print("Received Value: ");
+        Serial.println(rxValue);
+        Serial.println("*********");
+
+        // Send over LoRa
+        sendLoRaUplink(rxValue);
+
+        // Optional: respond to BLE client
+        String response = "LoRa sent: " + rxValue;
+        pCharacteristic->setValue(response.c_str());
+        pCharacteristic->notify();
+      }
+    }
+};
+
 
 void setup() {
   Serial.begin(115200);
-  while(!Serial);
-  delay(5000);  // Give time to switch to the serial monitor
-  Serial.println(F("\nSetup ... "));
+
+  Serial.println(F("\nSetin up LoRaWan connection ... "));
 
   Serial.println(F("Initialise the radio"));
   int16_t state = radio.begin();
@@ -44,39 +114,79 @@ void setup() {
   state = node.activateOTAA();
   debug(state != RADIOLIB_LORAWAN_NEW_SESSION, F("Join failed"), state, true);
 
-  Serial.println(F("Ready!\n"));
+  Serial.println(F("LoRaWan is eady!\n"));
+
+  Serial.println("\n Starting BLE Server now.");
+
+  // Create the BLE Device
+  BLEDevice::init("ESP32_BLE_Server");
+
+  // Create the BLE Server
+  pServer = BLEDevice::createServer();
+  pServer->setCallbacks(new MyServerCallbacks());
+
+  // Create the BLE Service
+  BLEService *pService = pServer->createService(SERVICE_UUID);
+
+  // Create BLE Characteristic
+  pCharacteristic = pService->createCharacteristic(
+                      CHARACTERISTIC_UUID,
+                      BLECharacteristic::PROPERTY_READ   |
+                      BLECharacteristic::PROPERTY_WRITE  |
+                      BLECharacteristic::PROPERTY_NOTIFY |
+                      BLECharacteristic::PROPERTY_INDICATE
+                    );
+
+  pCharacteristic->setCallbacks(new MyCallbacks());
+
+  // Create a BLE Descriptor
+  pCharacteristic->addDescriptor(new BLE2902());
+
+  // Set initial value
+  pCharacteristic->setValue("Hello from ESP32 Server!\n");
+
+  // Start the service
+  pService->start();
+
+  // Start advertising
+  BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
+  pAdvertising->addServiceUUID(SERVICE_UUID);
+  pAdvertising->setScanResponse(true);
+  pAdvertising->setMinPreferred(0x06);  // functions that help with iPhone connections issue
+  pAdvertising->setMinPreferred(0x12);
+  BLEDevice::startAdvertising();
+  
+  Serial.println("BLE Server ready! Waiting for connections...");
+  Serial.println("Service UUID: " + String(SERVICE_UUID));
+  Serial.println("Characteristic UUID: " + String(CHARACTERISTIC_UUID));
 }
 
 void loop() {
-  Serial.println(F("Sending uplink"));
-
-  // This is the place to gather the sensor inputs
-  // Instead of reading any real sensor, we just generate some random numbers as example
-  uint8_t value1 = radio.random(100);
-  uint16_t value2 = radio.random(2000);
-
-  // Build payload byte array
-  uint8_t uplinkPayload[3];
-  uplinkPayload[0] = value1;
-  uplinkPayload[1] = highByte(value2);   // See notes for high/lowByte functions
-  uplinkPayload[2] = lowByte(value2);
+  // Handle connection state changes
+  if (!deviceConnected && oldDeviceConnected) {
+    delay(500); // give the bluetooth stack the chance to get things ready
+    oldDeviceConnected = deviceConnected;
+  }
   
-  // Perform an uplink
-  int16_t state = node.sendReceive(uplinkPayload, sizeof(uplinkPayload));    
-  debug(state < RADIOLIB_ERR_NONE, F("Error in sendReceive"), state, false);
-
-  // Check if a downlink was received 
-  // (state 0 = no downlink, state 1/2 = downlink in window Rx1/Rx2)
-  if(state > 0) {
-    Serial.println(F("Received a downlink"));
-  } else {
-    Serial.println(F("No downlink received"));
+  if (deviceConnected && !oldDeviceConnected) {
+    // do stuff here on connecting
+    oldDeviceConnected = deviceConnected;
   }
 
-  Serial.print(F("Next uplink in "));
-  Serial.print(uplinkIntervalSeconds);
-  Serial.println(F(" seconds\n"));
+  // Send periodic messages to connected client
+  if (deviceConnected) {
+    static unsigned long lastTime = 0;
+    unsigned long currentTime = millis();
+    
+    // Send a message every 5 seconds
+    if (currentTime - lastTime > 12000) {
+      String message = "pong";
+      pCharacteristic->setValue(message.c_str());
+      pCharacteristic->notify();
+      //Serial.println("Sent message: " + message);
+      lastTime = currentTime;
+    }
+  }
   
-  // Wait until next uplink - observing legal & TTN FUP constraints
-  delay(uplinkIntervalSeconds * 1000UL);  // delay needs milli-seconds
-}
+  delay(1000);
+} 

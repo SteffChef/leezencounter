@@ -17,7 +17,7 @@ Radio radio = new RadioModule();
 */
 
 // how often to send an uplink - consider legal & FUP constraints - see notes
-const uint32_t uplinkIntervalSeconds = 1UL * 20UL;    // minutes x seconds
+const uint32_t uplinkIntervalSeconds = 1UL * 200UL;    // minutes x seconds
 
 // joinEUI - previous versions of LoRaWAN called this AppEUI
 // for development purposes you can use all zeros - see wiki for details
@@ -28,10 +28,10 @@ const uint32_t uplinkIntervalSeconds = 1UL * 20UL;    // minutes x seconds
 #define RADIOLIB_LORAWAN_DEV_EUI   0x0000000000000000
 #endif
 #ifndef RADIOLIB_LORAWAN_APP_KEY   // Replace with your App Key 
-#define RADIOLIB_LORAWAN_APP_KEY   0xAF, 0xEE, 0x9A, 0xEC, 0x69, 0xAF, 0xC5, 0xDA, 0xB8, 0x0E, 0x5A, 0x1C, 0x0B, 0xEC, 0xBE, 0x4D
+#define RADIOLIB_LORAWAN_APP_KEY   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 #endif
 #ifndef RADIOLIB_LORAWAN_NWK_KEY   // Put your Nwk Key here
-#define RADIOLIB_LORAWAN_NWK_KEY   0x83, 0x5C, 0x87, 0x9C, 0xA2, 0xFE, 0xA2, 0x35, 0x76, 0x5B, 0x55, 0x64, 0x5B, 0x5F, 0xFB, 0x37
+#define RADIOLIB_LORAWAN_NWK_KEY   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 #endif
 
 // for the curious, the #ifndef blocks allow for automated testing &/or you can

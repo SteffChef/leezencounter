@@ -1,14 +1,19 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { Prediction } from "@/types";
 
 interface BorderBoxProps {
   predictions: Prediction[];
+  backgroundImageSrc?: string; // Optional background image URL
 }
 
-const BorderBox: React.FC<BorderBoxProps> = ({ predictions }) => {
+const BorderBox: React.FC<BorderBoxProps> = ({
+  predictions,
+  backgroundImageSrc,
+}) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const imageRef = useRef<HTMLImageElement | null>(null);
 
-  // Original image dimensions
+  // Original image dimensions (4:3 aspect ratio)
   const ORIGINAL_WIDTH = 1600;
   const ORIGINAL_HEIGHT = 1200;
 
@@ -20,7 +25,7 @@ const BorderBox: React.FC<BorderBoxProps> = ({ predictions }) => {
   const scaleX = CANVAS_WIDTH / ORIGINAL_WIDTH;
   const scaleY = CANVAS_HEIGHT / ORIGINAL_HEIGHT;
 
-  useEffect(() => {
+  const drawCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -30,11 +35,17 @@ const BorderBox: React.FC<BorderBoxProps> = ({ predictions }) => {
     // Clear canvas
     ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    // Set canvas background
-    ctx.fillStyle = "#f8f9fa";
-    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    // Draw background image if available
+    if (imageRef.current) {
+      ctx.drawImage(imageRef.current, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    } else {
+      // Set canvas background color if no image
+      ctx.fillStyle = "#f8f9fa";
+      ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    }
 
     // Draw bounding boxes
+    // Expected bbox format: [center_x, center_y, width, height] (YOLO format, normalized 0-1)
     predictions.forEach((prediction) => {
       const [x_center, y_center, width, height] = prediction.bbox;
 
@@ -55,12 +66,9 @@ const BorderBox: React.FC<BorderBoxProps> = ({ predictions }) => {
       const scaledHeight = pixelHeight * scaleY;
 
       // Set box style based on category or confidence
-      ctx.strokeStyle = prediction.category === 1 ? "#ef4444" : "#3b82f6"; // red for category 1, blue for others
+      ctx.strokeStyle = "#ef4444"; // red
       ctx.lineWidth = 2;
-      ctx.fillStyle =
-        prediction.category === 1
-          ? "rgba(239, 68, 68, 0.1)"
-          : "rgba(59, 130, 246, 0.1)";
+      ctx.fillStyle = "rgba(239, 68, 68, 0.1)";
 
       // Draw filled rectangle (background)
       ctx.fillRect(scaledX, scaledY, scaledWidth, scaledHeight);
@@ -69,15 +77,37 @@ const BorderBox: React.FC<BorderBoxProps> = ({ predictions }) => {
       ctx.strokeRect(scaledX, scaledY, scaledWidth, scaledHeight);
 
       // Draw label with confidence
-      ctx.fillStyle = prediction.category === 1 ? "#ef4444" : "#3b82f6";
+      ctx.fillStyle = "#ef4444";
       ctx.font = "12px Arial";
-      const label = `${prediction.category} (${(
-        prediction.confidence * 100
-      ).toFixed(1)}%)`;
+      const label = `${(prediction.confidence * 100).toFixed(1)}%)`;
       const labelY = scaledY > 20 ? scaledY - 5 : scaledY + scaledHeight + 15;
       ctx.fillText(label, scaledX, labelY);
     });
   }, [predictions, scaleX, scaleY]);
+
+  // Load background image when backgroundImageSrc changes
+  useEffect(() => {
+    if (backgroundImageSrc) {
+      const img = new Image();
+      img.onload = () => {
+        imageRef.current = img;
+        // Trigger a redraw when image loads
+        drawCanvas();
+      };
+      img.onerror = () => {
+        console.error("Failed to load background image:", backgroundImageSrc);
+        imageRef.current = null;
+      };
+      img.src = backgroundImageSrc;
+    } else {
+      imageRef.current = null;
+    }
+  }, [backgroundImageSrc, drawCanvas]);
+
+  // Redraw canvas when predictions change
+  useEffect(() => {
+    drawCanvas();
+  }, [drawCanvas]);
 
   return (
     <div className="border border-gray-300 p-4 rounded-lg w-full shadow-md">
