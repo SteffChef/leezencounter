@@ -40,7 +40,34 @@ Activate the virtual environment by running:
 source .venv/bin/activate
 ```
 
+The following setup instructions are optional:
+
+Download and start Label Studio for image labelling:
+```bash
+uv sync --group labeling
+label-studio start
+```
+
+Install the Jupyter Notebook dependency group:
+```bash
+uv sync --group notebooks
+```
+
+Intall dependencies for Quantization-aware Training:
+```bash
+uv sync --group qat
+```
+
+If you want to install all dependencies, just run:
+```bash
+uv sync --all-groups
+```
+
+
 #### DVC
+
+> [!NOTE]  
+> The following instructions are relevant for development purposes only. You need the secrets to access the Digital Ocean cloud storage. If you are a maintainer or contributing developer, reach out to the authors to get the secrets. Otherwise, if you want to have a snapshot of the images used for training, you can find it [here](https://uni-muenster.sciebo.de/s/7F6Wqp4oMBHok7K).
 
 Enable data tracking with [DVC](https://dvc.org/doc/start) by running. Set the cloud storage reference by running
 ```bash
