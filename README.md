@@ -12,7 +12,7 @@ Leezencounter is organized as a multi-component project (mono repository). See t
 
 # Hardware
 
-We used [this](https://wiki.seeedstudio.com/xiao_esp32s3_getting_started/) MCU with the [XIAO Wio-SX1262 LoRa module](https://www.seeedstudio.com/Wio-SX1262-with-XIAO-ESP32S3-p-5982.html). The default camera module of the ESP32-S3 was replaced by the OV5640 21mm 160 degrees one, which enabled the capturing of wider images and higher resolutions.
+We used the [XIAO ESP32-S3 Sense](https://wiki.seeedstudio.com/xiao_esp32s3_getting_started/) MCU with the [XIAO Wio-SX1262 LoRa module](https://www.seeedstudio.com/Wio-SX1262-with-XIAO-ESP32S3-p-5982.html). The default camera module of the ESP32-S3 was replaced by the OV5640 21mm 160 degrees one, which enabled the capturing of wider images and higher resolutions.
 
 A custom 3D-printed case for the hardware was designed for mounting purposes.
 
@@ -52,7 +52,7 @@ Infrastructure:
 
 A snapshot of the images used for model training can be found [here](https://uni-muenster.sciebo.de/s/7F6Wqp4oMBHok7K).
 
-### Mono Repository Structure
+# Mono Repository Structure
 
 ```
 .
@@ -63,10 +63,23 @@ A snapshot of the images used for model training can be found [here](https://uni
 │   └── notebooks           // Jupyter notebooks for local experimentation
 ├── webapplication          // Webapp to display collected data
 ├── model-deployment        // Model deployment files for ESP32-S3
+├── cad                     // CAD files for 3D-printable case
 └── sketches                // Arduino Sketches for MCUs
 ```
 
 Have a look at the sub-repository README files for more details.
+
+# Project Building
+The project workflow was as follows (if you want to re-produce the results or re-use this project for your purposes):
+
+1. ``sketches`` (camera capture scripts) - Collect images
+2. ``model-training`` - Train/Fine-tune model utilizing the images collected from `sketches` scripts
+3. ``model-deployment`` (``model_conversion`` package) - Convert and compress the fine-tuned YOLO model
+4. ``model-deployment`` (``yolo11_detect``) - Build the ESP-IDF project and deploy quantized model on hardware; send model predictions via BLE
+5. ``webapplication`` - Setup web application for tracking collected data from MCUs
+6. ``sketches`` (``lorawan_send`` package) - Receive model predictions via BLE and forward results via LoRaWAN to TNN node, which get fetched from the web application
+7. (``cad`` - Use/Customize 3D-printable case (e.g., with [Tinkercad](https://www.tinkercad.com/)) to have an out-of-the-box usable mounting solution; optional)
+
 
 # Licence
 Leezencounter is licensed under the [GNU Affero General Public License v3.0](./LICENCE).
